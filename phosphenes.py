@@ -1,10 +1,24 @@
 import copy
-from typing import Dict
+from typing import Dict, Tuple, Optional
 
 import cv2
 import numpy as np
+from dataclasses import dataclass
+
 import torch
+import gym
 from gym.spaces import Box
+import os
+import pathlib
+import importlib.resources
+import yaml
+
+from dynaphos.cortex_models import \
+    get_visual_field_coordinates_from_cortex_full
+from dynaphos.simulator import GaussianSimulator
+from dynaphos.utils import (load_params, to_numpy, load_coordinates_from_yaml,
+                            Map)
+# Dynaphos is a library developed in Neural Coding lab, check paper and git repository.
 
 from habitat import get_config
 from habitat.core import spaces
@@ -186,7 +200,8 @@ class Phosphenes(ObservationTransformer):
             # Copy grayscale image on each RGB channel so we can reuse
             # pre-trained net.
             phosphenes = 255 * phosphenes / (phosphenes.max() or 1)
-            frames.append(np.tile(np.expand_dims(phosphenes, -1), 3))
+            frames.append(np.tile(np.expand_dims(phosphenes, -1), 3)) # Working (I know for sure)
+            # frames.append(np.expand_dims(phosphenes, -1)) # Seems to also be working?
 
             # Render the image
             # cv2.waitKey(1)
@@ -208,6 +223,69 @@ class Phosphenes(ObservationTransformer):
         observation_space[key] = overwrite_gym_box_shape(
             observation_space[key], new_shape)
         return observation_space
+
+
+@baseline_registry.register_obs_transformer()
+class PhosphenesRealistic(ObservationTransformer):
+    def __init__(self, phosphene_resolution, intensity_decay, num_electrodes):
+        super().__init__()
+        self.phosphene_resolution = phosphene_resolution
+        self.intensity_decay = intensity_decay
+        self.num_electrodes = num_electrodes
+        torch.dtype = torch.float32
+        self.transformed_sensor = 'rgb'
+        self.simulator = self.setup_realistic_phosphenes()
+
+    @classmethod
+    def from_config(cls, config: get_config):
+        return cls(config.resolution, config.intensity_decay, config.num_electrodes)
+
+    def forward(self, observations: Dict[str, torch.Tensor]
+                ) -> Dict[str, torch.Tensor]:
+        key = self.transformed_sensor
+        if key in observations:
+            observations[key] = self._transform_obs(observations[key])
+        return observations
+
+    def setup_realistic_phosphenes(self):
+        # Load the necessary config files from Dynaphos
+        path_module = pathlib.Path(__file__).parent.resolve()
+
+        # Feed the configurations from the config file
+        params = load_params(os.path.join(path_module, 'dynaphos_files/params.yaml'))
+        params['thresholding']['use_threshold'] = False
+        params['run']['resolution'] = self.phosphene_resolution
+        # params['run']['fps'] = 10
+        params['sampling']['filter'] = 'none'
+
+        coordinates_cortex = load_coordinates_from_yaml(os.path.join(path_module, 'dynaphos_files/grid_coords_dipole_valid.yaml'), n_coordinates=self.num_electrodes)
+        coordinates_cortex = Map(*coordinates_cortex)
+        coordinates_visual_field = get_visual_field_coordinates_from_cortex_full(params['cortex_model'], coordinates_cortex)
+        simulator = GaussianSimulator(params, coordinates_visual_field)
+
+        return simulator
+
+    def realistic_representation(self, sensor_observation):
+        # Generate phosphenes
+        stim_pattern = self.simulator.sample_stimulus(sensor_observation)
+        phosphenes = self.simulator(stim_pattern)
+        realistic_phosphenes = phosphenes.cpu().numpy() * 255
+
+        return realistic_phosphenes
+
+    def _transform_obs(self, observation):
+        device = observation.device
+        observation = observation.cpu().numpy()
+        frames = []
+        for frame in observation:
+            frame = np.squeeze(frame)
+            phosphenes_realistic = self.realistic_representation(frame)
+            # frames.append(np.tile(np.expand_dims(phosphenes_realistic, -1), 3))
+            frames.append(np.expand_dims(phosphenes_realistic, -1))
+
+        phosphenes_realistic = torch.as_tensor(np.array(frames, 'uint8'), device=device)
+
+        return phosphenes_realistic
 
 
 def create_regular_grid(phosphene_resolution, size, jitter, intensity_var):

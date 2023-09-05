@@ -12,7 +12,7 @@ def main():
 
     os.chdir(Path('~/Internship/PyCharm_projects/habitat-lab/').expanduser())
 
-    path_config = str(Path('~/Internship/PyCharm_projects/Phossim/habitat-phosphenes/'
+    path_config = str(Path('~/Internship/PyCharm_projects/habitat-phosphenes/'
                            'ppo_pointnav_phosphenes_complete.yaml').expanduser())
 
     _config = phosphenes.get_config(path_config)

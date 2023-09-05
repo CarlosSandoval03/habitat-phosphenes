@@ -2,16 +2,6 @@ habitat:
   dataset:
     content_scenes:
     - '*'
-#    - [Cooperstown, Crandon, Delton, Dryville, Dunmor, Eagerville, Goffs, Hainesburg, Hambleton]
-#    - Cooperstown
-#    - Crandon
-#    - Delton
-#    - Dryville
-#    - Dunmor
-#    - Eagerville
-#    - Goffs
-#    - Hainesburg
-#    - Hambleton
     data_path: data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz
     scenes_dir: data/scene_datasets
     split: train  # train or val (default to train)
@@ -34,15 +24,13 @@ habitat:
     achieved_goal_keys: []
     action_keys: null
     desired_goal_keys: []
-    obs_keys:  # null  # Default to null
+    obs_keys:  # null  # Default to null (without the rgb and depth lines)
       - rgb #
 #      - depth #
-      - pointgoal #
-#      - pointgoal_with_gps_compass #
+#      - pointgoal #
+      - pointgoal_with_gps_compass #
   seed: 100
   simulator:
-    renderer: # Extra given the construct_vector_env
-      enable_batch_renderer: false # Extra given the construct_vector_env
     ac_freq_ratio: 4
     action_space_config: v0
     action_space_config_arguments: {}
@@ -132,8 +120,8 @@ habitat:
     object_ids_start: 100
     requires_textures: true
     robot_joint_start_noise: 0.0
-    scene: data/scene_datasets/habitat-test-scenes/van-gogh-room.glb  # When is this used??? Changing it does not affect the execution.
-    scene_dataset: default # I think it means Gibson, as in Gibson dataset is the default dataset
+    scene: data/scene_datasets/habitat-test-scenes/van-gogh-room.glb  # When is this used???
+    scene_dataset: default
     seed: 100
     step_physics: true
     tilt_angle: 15
@@ -141,7 +129,6 @@ habitat:
     type: Sim-v0
     update_articulated_agent: true
   task:
-    rank0_env0_measure_names: {} # Extra given the construct_vector_env
     actions:
       move_forward:
         agent_index: 0
@@ -172,7 +159,7 @@ habitat:
     end_on_success: true
     filter_nav_to_tasks: []
     force_regenerate: false
-    goal_sensor_uuid: pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass
+    goal_sensor_uuid: pointgoal_with_gps_compass # pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass
     joint_max_impulse: -1.0
     lab_sensors: # {}
       pointgoal_with_gps_compass_sensor: #
@@ -234,28 +221,29 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/debug  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_Original_100Msteps_12Envs_MaxEpsStep800  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
     evals_per_ep: 1
     extra_sim_sensors: {} # ???
     should_load_ckpt: true # default to true
-    split: val # Overrides the split from dataset
+    split: val
     use_ckpt_config: true
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/debug # Same as checkpoint_folder to evaluate
+#  eval_ckpt_path_dir: /home/carsan/Internship/PyCharm_projects/habitat-lab/data/pretrained_models/to_evaluate_directly
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_Original_100Msteps_12Envs_MaxEpsStep800 # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
   force_torch_single_threaded: true #
-  load_resume_state_config: false # default to false
+  load_resume_state_config: true # default to false
   log_file: train.log
   log_interval: 25 #
   num_checkpoints: 50 #
-  num_environments: 8 # Default to 8
+  num_environments: 12 # Default to 8
   num_processes: -1
   num_updates: -1 # -1 (default to 10000)
   profiling:
@@ -294,26 +282,26 @@ habitat_baselines:
       action_distribution_type: categorical
       hierarchical_policy: ???
       name: PointNavResNetPolicy
-      obs_transforms: #{} #
+      obs_transforms: {} #
 #        black_screen:
 #          type: "BlackScreen"
-        gray_scale:
-          type: "GrayScale"
-        edge_filter:
-          type: "EdgeFilter"
-          sigma: 3
-          threshold_low: 20
-          threshold_high: 40
+#        gray_scale:
+#          type: "GrayScale"
+#        edge_filter:
+#          type: "EdgeFilter"
+#          sigma: 3
+#          threshold_low: 20
+#          threshold_high: 40
 #        phosphenes_vision:
 #          type: "Phosphenes"
 #          size: [256, 256]
 #          resolution: 32
 #          sigma: 2
-        phosphenes_vision_realistic:
-          type: "PhosphenesRealistic"
-          resolution: [256, 256]
-          intensity_decay: 0.4
-          num_electrodes: 256
+#        phosphenes_vision_realistic:
+#          type: "PhosphenesRealistic"
+#          resolution: [256, 256]
+#          intensity_decay: 0.4
+#          num_electrodes: 256
     ppo:
       clip_param: 0.2 #
       entropy_coef: 0.01 #
@@ -345,14 +333,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debug
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_GPSRGB_Original_100Msteps_12Envs_MaxEpsStep800
   test_episode_count: 5 # number of evaluation episodes??? (it is written in the eval function)
   torch_gpu_id: 0
-  total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
+  total_num_steps: 100000000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debug
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_GPSRGB_Original_100Msteps_12Envs_MaxEpsStep800
   video_fps: 10
   wb:
     entity: ''

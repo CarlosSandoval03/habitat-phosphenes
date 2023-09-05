@@ -5,7 +5,8 @@ defaults:
   - /habitat_baselines/rl/policy/obs_transforms:
     - edge_filter_base
     - gray_scale_base
-    - phosphene_vision_base
+    - phosphenes_vision_base
+    - phosphenes_vision_realistic_base
   - _self_
 
 #habitat:
@@ -67,7 +68,7 @@ habitat_baselines:
           sigma: 3
           threshold_low: 20
           threshold_high: 40
-        phosphene_vision:
+        phosphenes_vision:
           type: "Phosphenes"
           size:
           - 256 # The first run config was generated like this
