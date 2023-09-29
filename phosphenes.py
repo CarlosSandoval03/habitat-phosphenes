@@ -283,6 +283,11 @@ class PhosphenesRealistic(ObservationTransformer):
             # frames.append(np.tile(np.expand_dims(phosphenes_realistic, -1), 3))
             frames.append(np.expand_dims(phosphenes_realistic, -1))
 
+            # Render the image
+            # cv2.waitKey(1)
+            # cv2.imshow("Edges", phosphenes_realistic)
+            # cv2.waitKey(1)
+
         phosphenes_realistic = torch.as_tensor(np.array(frames, 'uint8'), device=device)
 
         return phosphenes_realistic

@@ -234,7 +234,7 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/debug  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_3transfRealistic_100Msteps_12Envs_MaxEpsStep800  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/debug # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_3transfRealistic_100Msteps_12Envs_MaxEpsStep800 # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -254,8 +254,8 @@ habitat_baselines:
   load_resume_state_config: false # default to false
   log_file: train.log
   log_interval: 25 #
-  num_checkpoints: 100 #
-  num_environments: 8 # Default to 8
+  num_checkpoints: 50 #
+  num_environments: 12 # Default to 8
   num_processes: -1
   num_updates: -1 # -1 (default to 10000)
   profiling:
@@ -304,16 +304,16 @@ habitat_baselines:
           sigma: 3
           threshold_low: 20
           threshold_high: 40
-        phosphenes_vision:
-          type: "Phosphenes"
-          size: [256, 256]
-          resolution: 32
-          sigma: 2
-#        phosphenes_vision_realistic:
-#          type: "PhosphenesRealistic"
-#          resolution: [256, 256]
-#          intensity_decay: 0.4
-#          num_electrodes: 256
+#        phosphenes_vision:
+#          type: "Phosphenes"
+#          size: [256, 256]
+#          resolution: 32
+#          sigma: 2
+        phosphenes_vision_realistic:
+          type: "PhosphenesRealistic"
+          resolution: [256, 256]
+          intensity_decay: 0.4
+          num_electrodes: 256
     ppo:
       clip_param: 0.2 #
       entropy_coef: 0.01 #
@@ -345,14 +345,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debug
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_RGB_3transfRealistic_100Msteps_12Envs_MaxEpsStep800
   test_episode_count: 5 # number of evaluation episodes??? (it is written in the eval function)
   torch_gpu_id: 0
   total_num_steps: 100000000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debug
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_RGB_3transfRealistic_100Msteps_12Envs_MaxEpsStep800
   video_fps: 10
   wb:
     entity: ''
