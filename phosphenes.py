@@ -6,6 +6,7 @@ import numpy as np
 from dataclasses import dataclass
 
 import torch
+import torch.nn.functional as F
 import gym
 from gym.spaces import Box
 import os
@@ -587,7 +588,15 @@ class Decoder(nn.Module):
 
         print('decoder output range', x.min(),x.max())
 
-        return x
+        # To make dimensions match
+        input_size = x.size()
+        output_size = (128, 1, 256, 256)
+        input_tensor = x.view(input_size)
+        scale_factor = (256,256)
+
+        output_tensor = F.interpolate(input_tensor, size=scale_factor, mode='bilinear', align_corners=False)
+
+        return output_tensor
         # return self.model(x)
 
 @baseline_registry.register_obs_transformer()
