@@ -93,6 +93,8 @@ class GrayScale(ObservationTransformer):
 
         observation = observation.cpu().numpy()
 
+        # plt.imsave(savepath + 'obs_input.png', observation[0, :, :, :], cmap=plt.cm.gray)
+
         frames = []
         for frame in observation:
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -355,7 +357,12 @@ class ConvLayer2(nn.Module):
         self.swish = nn.SiLU() #nn.Swish()
 
     def forward(self, x):
-        out = self.swish(self.conv(x))
+        x_clone = x.clone()  # Make a clone of the input tensor
+        with torch.no_grad():
+            out = self.swish(self.conv(x_clone))
+        # out = self.swish(self.conv(x))
+        # Changed because of error: RuntimeError: Inference tensors cannot be saved for backward. To work around you can
+        # make a clone to get a normal tensor and use it in autograd.
         return out
 
 class ResidualBlock(nn.Module):
@@ -390,10 +397,11 @@ class ResidualBlock2(nn.Module):
 
     def forward(self, x):
         residual = x
-        out = self.swish(self.conv1(x))
-        out = self.conv2(out)
-        out += residual
-        out = self.swish(out)
+        with torch.no_grad():
+            out = self.swish(self.conv1(x))
+            out = self.conv2(out)
+            out += residual
+            out = self.swish(out)
         return out
 
 class E2E_Encoder(nn.Module):
@@ -421,6 +429,10 @@ class E2E_Encoder(nn.Module):
     def forward(self, x):
         print('encoder input range', x.min(),x.max(), x.shape)
 
+        # Save input Image
+        # Conditional to only save images when first dimension is the number of env and not 512?
+        plt.imsave(savepath + 'enc_input.png', x[0, 0, :, :].detach().cpu().numpy(), cmap=plt.cm.gray)
+
         # plt.imsave(savepath+'enc_input.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.convlayer1(x)
         # print('enc_convlayer1',x.shape)
@@ -446,7 +458,8 @@ class E2E_Encoder(nn.Module):
         x = self.convlayer4(x)
         # print('enc_convlayer4',x.shape)
         # plt.imsave(savepath+'enc_convlayer4.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
-        x = self.tanh1(self.encconv1(x))
+        with torch.no_grad():
+            x = self.tanh1(self.encconv1(x))
         # print('enc_tanh',x.shape)
         # plt.imsave(savepath+'enc_tanh.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
 
@@ -482,11 +495,9 @@ class Encoder(ObservationTransformer):
 
     def _transform_obs(self, observation: torch.Tensor):
         # print('input of encoder observationshape', observation.shape)
-
-        # device = observation.device
-        # self.model.cuda(device)
-
         # print('permuted', observation.permute(0,3,1,2).shape)
+        device = observation.device
+        self.model.to(device)
         stimulation = self.model.forward(observation.permute(0,3,1,2).float())
 
         # stimulation = .5*(frame+1)
@@ -604,8 +615,9 @@ class E2E_Decoder(ObservationTransformer):
     def _transform_obs(self, observation: torch.Tensor):
         # print('input of encoder observationshape', observation.shape)
 
-        # device = observation.device
-        # self.model.cuda(device)
+        device = observation.device
+        self.model.to(device)
+
         observation_sliced=observation.permute(0,3,1,2)[:,0,:,:].unsqueeze(1)
         print('OBSSHAPE',observation.shape, observation_sliced.shape)
 
@@ -685,8 +697,10 @@ class E2E_PhospheneSimulator(ObservationTransformer):
     2. Uses pMask to sample the phosphene locations from the SPV activation template
     2. Performs convolution with gaussian kernel for realistic phosphene simulations
     """
-    def __init__(self,scale_factor=8, sigma=1.5,kernel_size=11, intensity=15):
+    def __init__(self,scale_factor=4, sigma=1.5,kernel_size=11, intensity=15):
         super().__init__()
+
+        # Modification: I changed scale_factor from 8 to 4 so it matches the size of the pMask in the forward step.
 
         # Phosphene grid
         self.pMask = get_pMask(jitter_amplitude=0,dropout=False,seed=0)
@@ -742,8 +756,9 @@ class E2E_PhospheneSimulator(ObservationTransformer):
 
     def _transform_obs(self, observation: torch.Tensor):
         # print('input of simulator observationshape', observation.shape)
+
         device = observation.device
-        # self.gaussian.cuda(device)
+        self.gaussian.to(device)
 
         print('sim input range', observation.permute(0,3,1,2).min(),observation.permute(0,3,1,2).max())
 

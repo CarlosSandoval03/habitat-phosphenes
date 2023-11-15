@@ -299,21 +299,25 @@ habitat_baselines:
 #          type: "BlackScreen"
         gray_scale:
           type: "GrayScale"
-        edge_filter:
-          type: "EdgeFilter"
-          sigma: 3
-          threshold_low: 20
-          threshold_high: 40
-        phosphenes_vision:
-          type: "Phosphenes"
-          size: [256, 256]
-          resolution: 32
-          sigma: 2
+#        edge_filter:
+#          type: "EdgeFilter"
+#          sigma: 3
+#          threshold_low: 20
+#          threshold_high: 40
+#        phosphenes_vision:
+#          type: "Phosphenes"
+#          size: [256, 256]
+#          resolution: 32
+#          sigma: 2
 #        phosphenes_vision_realistic:
 #          type: "PhosphenesRealistic"
 #          resolution: [256, 256]
 #          intensity_decay: 0.4
 #          num_electrodes: 256
+        Encoder:
+          type: "Encoder"
+        E2E_PhospheneSimulator:
+          type: "E2E_PhospheneSimulator"
     ppo:
       clip_param: 0.2 #
       entropy_coef: 0.01 #
@@ -336,6 +340,8 @@ habitat_baselines:
       use_linear_lr_decay: true #
       use_normalized_advantage: false
       value_loss_coef: 0.5 #
+      obs_transforms: ["GrayScale", "Encoder", "E2E_PhospheneSimulator"] # For E2E, error if config is not complete
+      decoder: Decoder # For E2E, error if config is not complete
     preemption:
       append_slurm_job_id: false
       save_resume_state_interval: 100
