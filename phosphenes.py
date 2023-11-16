@@ -428,55 +428,30 @@ class E2E_Encoder(nn.Module):
         self.tanh1 = nn.Tanh()
 
     def forward(self, x):
-        print('encoder input range', x.min(),x.max(), x.shape)
+        # print('encoder input range', x.min(),x.max(), x.shape)
 
         # Save input Image
         # Conditional to only save images when first dimension is the number of env and not 512?
-        plt.imsave(savepath + 'enc_input.png', x[0, 0, :, :].detach().cpu().numpy(), cmap=plt.cm.gray)
+        # plt.imsave(savepath + 'enc_input.png', x[0, 0, :, :].detach().cpu().numpy(), cmap=plt.cm.gray)
 
-        # plt.imsave(savepath+'enc_input.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.convlayer1(x)
-        # print('enc_convlayer1',x.shape)
-        # plt.imsave(savepath+'enc_convlayer1.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.maxpool1(self.convlayer2(x))
-        # print('enc_convlayer2',x.shape)
-        # plt.imsave(savepath+'enc_convlayer2.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.maxpool2(self.convlayer3(x))
-        # print('enc_convlayer3',x.shape)
-        # plt.imsave(savepath+'enc_convlayer3.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res1(x)
-        # print('enc_res1',x.shape)
-        # plt.imsave(savepath+'enc_res1.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res2(x)
-        # print('enc_res2',x.shape)
-        # plt.imsave(savepath+'enc_res2.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res3(x)
-        # print('enc_res3',x.shape)
-        # plt.imsave(savepath+'enc_res3.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res4(x)
-        # print('enc_res4',x.shape)
-        # plt.imsave(savepath+'enc_res4.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.convlayer4(x)
-        # print('enc_convlayer4',x.shape)
-        # plt.imsave(savepath+'enc_convlayer4.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         with torch.no_grad():
             x = self.tanh1(self.encconv1(x))
-        # print('enc_tanh',x.shape)
-        # plt.imsave(savepath+'enc_tanh.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
 
         stimulation = .5*(x+1)
         # print('enc_output',stimulation.shape)
-        # img=Image.fromarray(stimulation[0,0,:,:].detach().cpu().numpy().astype(np.uint8))
-        # img.save(savepath+'enc_output.png')
-        # plt.imsave('/home/burkuc/data/habitatai/images/enc_output_float_imsave_cmap.png', stimulation[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
-        plt.imsave(savepath+'enc_output.png', stimulation[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
+        # plt.imsave(savepath+'enc_output.png', stimulation[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         return stimulation
 
 @baseline_registry.register_obs_transformer()
 class Encoder(ObservationTransformer):
-    # model: nn.Module
-
-    # def __init__(self, in_channels=3, out_channels=1,binary_stimulation=True):
     def __init__(self, in_channels=1, out_channels=1,binary_stimulation=True):
         super().__init__()
 
@@ -495,16 +470,13 @@ class Encoder(ObservationTransformer):
         return observations
 
     def _transform_obs(self, observation: torch.Tensor):
-        # print('input of encoder observationshape', observation.shape)
-        # print('permuted', observation.permute(0,3,1,2).shape)
+        # print('Input of encoder observation shape', observation.shape)
         device = observation.device
         self.model.to(device)
         stimulation = self.model.forward(observation.permute(0,3,1,2).float())
 
-        # stimulation = .5*(frame+1)
+        # stimulation = .5*(frame+1)  # Is this important?
         stimulation = stimulation.permute(0,2,3,1)
-
-        # print('stimulation',stimulation.shape)
 
         return stimulation
 
@@ -551,58 +523,34 @@ class Decoder(nn.Module):
         self.activ= self.out_activation
 
     def forward(self, x):
-        # print('dec_input', x.shape)
-        print('decoder input range', x.min(),x.max())
+        # print('Decoder input range', x.min(),x.max())
 
         # plt.imsave(savepath+'dec_input.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
+
         x = self.convlayer1(x)
-        # print('dec_convlayer1', x.shape)
-        # plt.imsave(savepath+'dec_convlayer1.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.convlayer2(x)
-        # print('dec_convlayer2', x.shape)
-        # plt.imsave(savepath+'dec_convlayer2.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.convlayer3(x)
-        # print('dec_convlayer3', x.shape)
-        # plt.imsave(savepath+'dec_convlayer3.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res1(x)
-        # print('dec_res1', x.shape)
-        # plt.imsave(savepath+'dec_res1.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res2(x)
-        # print('dec_res2', x.shape)
-        # plt.imsave(savepath+'dec_res2.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res3(x)
-        # print('dec_res3', x.shape)
-        # plt.imsave(savepath+'dec_res3.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.res4(x)
-        # print('dec_res4', x.shape)
-        # plt.imsave(savepath+'dec_res4.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.convlayer4(x)
-        # print('dec_convlayer4', x.shape)
-        # plt.imsave(savepath+'dec_convlayer4.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.decconv1(x)
-        # print('dec_convlayer5', x.shape)
-        # plt.imsave(savepath+'dec_convlayer5.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         x = self.activ(x)
-        # print('dec_output', x.shape)
-        plt.imsave(savepath+'dec_output.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
 
-        print('decoder output range', x.min(),x.max())
+        # plt.imsave(savepath+'dec_output.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
+        # print('decoder output range', x.min(),x.max())
 
-        # To make dimensions match
+        # Interpolation process to match dimensions
         input_size = x.size()
-        output_size = (128, 1, 256, 256)
         input_tensor = x.view(input_size)
         scale_factor = (256,256)
+        x = F.interpolate(input_tensor, size=scale_factor, mode='bilinear', align_corners=False)
 
-        output_tensor = F.interpolate(input_tensor, size=scale_factor, mode='bilinear', align_corners=False)
-
-        return output_tensor
-        # return self.model(x)
+        return x
 
 @baseline_registry.register_obs_transformer()
 class E2E_Decoder(ObservationTransformer):
-    # model: nn.Module
-
     def __init__(self, in_channels=1, out_channels=1, out_activation='sigmoid'):
         super().__init__()
 
@@ -622,17 +570,15 @@ class E2E_Decoder(ObservationTransformer):
         return observations
 
     def _transform_obs(self, observation: torch.Tensor):
-        # print('input of encoder observationshape', observation.shape)
-
         device = observation.device
         self.model.to(device)
 
         observation_sliced=observation.permute(0,3,1,2)[:,0,:,:].unsqueeze(1)
-        print('OBSSHAPE',observation.shape, observation_sliced.shape)
+
+        # print('OBS_SHAPE',observation.shape, observation_sliced.shape)
 
         reconstruction = self.model.forward(observation_sliced)
         reconstruction = reconstruction.permute(0,2,3,1)
-        # print('stimulation',stimulation.shape)
 
         return reconstruction
 
@@ -650,6 +596,7 @@ class E2E_Decoder(ObservationTransformer):
         new_shape = (h, w, 1)
         observation_space[key] = overwrite_gym_box_shape(
             observation_space[key], new_shape)
+
         return observation_space
 
 def perlin_noise_map(seed=0,shape=(256,256),scale=100,octaves=6,persistence=.5,lacunarity=2.):
@@ -719,7 +666,6 @@ class E2E_PhospheneSimulator(ObservationTransformer):
 
         self.transformed_sensor = 'rgb'
 
-        # self.train()
 
     def get_gaussian_layer(self, kernel_size, sigma, channels):
         """non-trainable Gaussian filter layer for more realistic phosphene simulation"""
@@ -764,31 +710,23 @@ class E2E_PhospheneSimulator(ObservationTransformer):
         return observations
 
     def _transform_obs(self, observation: torch.Tensor):
-        # print('input of simulator observationshape', observation.shape)
-
         device = observation.device
         self.gaussian.to(device)
 
-        print('sim input range', observation.permute(0,3,1,2).min(),observation.permute(0,3,1,2).max())
+        # print('Sim input range', observation.permute(0,3,1,2).min(),observation.permute(0,3,1,2).max())
 
-        # print('sim_input', observation.permute(0,3,1,2).shape)
-
-        # sim_input torch.Size([64, 1, 32, 32])
-        # sim_output torch.Size([64, 1, 256, 256])
+        # The sim_input torch.Size([64, 1, 32, 32])
+        # The sim_output torch.Size([64, 1, 256, 256])
 
         # plt.imsave(savepath+'sim_input.png', observation.permute(0,3,1,2)[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
 
         phosphenes = self.up(observation.permute(0,3,1,2).float())*self.pMask.cuda(device)
         phosphenes = self.gaussian(F.pad(phosphenes, (5,5,5,5), mode='constant', value=0))
         phosphene = self.intensity*phosphenes
-        # print('sim_output', phosphene.shape)
-        # img=Image.fromarray(phosphene[0,0,:,:].detach().cpu().numpy().astype(np.uint8))
-        # img.save(savepath+'sim_output.png')
-        # plt.imsave('/home/burkuc/data/habitatai/images/sim_output_float_imsave_cmap.png', phosphene[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
 
-        # print('sim output range', phosphene.min(),phosphene.max())
+        # print('Sim output range', phosphene.min(),phosphene.max())
 
-        plt.imsave(savepath+'sim_output.png', phosphene[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
+        # plt.imsave(savepath+'sim_output.png', phosphene[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         phosphene = torch.tile(phosphene.permute(0,2,3,1), (1,1,1,3))
 
         return phosphene
@@ -841,7 +779,7 @@ class CustomLoss(object):
         self.kappa = kappa if self.stimu_loss is not None else 0
 
     def prepare(self, observations):
-        #get tensor from dicionary
+        # Get tensor from dicionary
         key = 'rgb'
         if key in observations:
             observations = observations[key]
@@ -859,72 +797,9 @@ class CustomLoss(object):
         #     target = labelx
 
         # Calculate loss
-        # loss_stimu = self.stimu_loss(self.prepare(stimulation)) if self.stimu_loss is not None else torch.zeros(1,device=device)
         loss_stimu = self.stimu_loss(stimulation) if self.stimu_loss is not None else torch.zeros(1,device=device)
 
         loss_recon = self.recon_loss(self.prepare(reconstruction),target)
 
         loss_total = (1-self.kappa)*loss_recon + self.kappa*loss_stimu
         return loss_total, torch.mean(loss_recon), loss_stimu
-
-# PREVIOUS BELOW< ABOVE IS CHANGED TO ASSUME THAT IMAGE ETC ARE NOT DICTIONARIES
-# class CustomLoss(object):
-#     def __init__(self, recon_loss_type='mse',recon_loss_param=None, stimu_loss_type=None, kappa=0):
-
-#         """Custom loss class for training end-to-end model with a combination of reconstruction loss and sparsity loss
-#         reconstruction loss type can be either one of: 'mse' (pixel-intensity based), 'vgg' (i.e. perceptual loss/feature loss)
-#         or 'boundary' (weighted cross-entropy loss on the output<>semantic boundary labels).
-#         stimulation loss type (i.e. sparsity loss) can be either 'L1', 'L2' or None.
-#         """
-
-#         # Reconstruction loss
-#         if recon_loss_type == 'mse':
-#             self.recon_loss = torch.nn.MSELoss()
-#             self.target = 'image'
-#         # elif recon_loss_type == 'vgg':
-#         #     self.feature_extractor = model.VGG_Feature_Extractor(layer_depth=recon_loss_param,device=device)
-#         #     self.recon_loss = lambda x,y: torch.nn.functional.mse_loss(self.feature_extractor(x),self.feature_extractor(y))
-#         #     self.target = 'image'
-#         # elif recon_loss_type == 'boundary':
-#         #     loss_weights = torch.tensor([1-recon_loss_param,recon_loss_param],device=device)
-#         #     self.recon_loss = torch.nn.CrossEntropyLoss(weight=loss_weights)
-#         #     self.target = 'label'
-
-#         # Stimulation loss
-#         if stimu_loss_type=='L1':
-#             self.stimu_loss = lambda x: torch.mean(.5*(x+1)) #torch.mean(.5*(x+1)) #converts tanh to sigmoid first
-#         elif stimu_loss_type == 'L2':
-#             self.stimu_loss = lambda x: torch.mean((.5*(x+1))**2)  #torch.mean((.5*(x+1))**2) #converts tanh to sigmoid first
-#         elif stimu_loss_type is None:
-#             self.stimu_loss = None
-#         self.kappa = kappa if self.stimu_loss is not None else 0
-
-#     def prepare(self,observations):
-#         #get tensor from dicionary
-#         key = 'rgb'
-#         if key in observations:
-#             observations = observations[key]
-#         return observations
-
-#     def __call__(self,image,stimulation,phosphenes,reconstruction,validation=False):
-#         device = self.prepare(image).device
-
-
-#         # Target
-#         if self.target == 'image': # Flag for reconstructing input image or target label
-#             target = self.prepare(image)
-#         # elif self.target == 'label':
-#         #     target = labelx
-
-#         # Calculate loss
-#         loss_stimu = self.stimu_loss(self.prepare(stimulation)) if self.stimu_loss is not None else torch.zeros(1,device=device)
-#         # loss_stimu = self.stimu_loss(stimulation.to(device)) if self.stimu_loss is not None else torch.zeros(1,device=device)
-
-#         loss_recon = self.recon_loss(self.prepare(reconstruction),target)
-#         # print(reconstruction)
-#         # print(target)
-#         # print(loss_recon)
-#         # exit()
-
-#         loss_total = (1-self.kappa)*loss_recon + self.kappa*loss_stimu
-#         return loss_total, torch.mean(loss_recon), loss_stimu

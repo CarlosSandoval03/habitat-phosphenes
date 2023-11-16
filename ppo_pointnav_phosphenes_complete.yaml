@@ -60,7 +60,8 @@ habitat:
         radius: 0.1
         sim_sensors: # also semantic sensor, force, torque, etc.
           depth_sensor: #
-            height: 256
+            height: 256 #
+            width: 256 #
             hfov: 90
             max_depth: 10.0
             min_depth: 0.0
@@ -77,9 +78,9 @@ habitat:
             - 0.0
             sensor_subtype: PINHOLE
             type: HabitatSimDepthSensor
-            width: 256
           rgb_sensor: #
-            height: 256
+            height: 256 # Default to 256
+            width: 256 # 256
             hfov: 90
             noise_model: None
             noise_model_kwargs: {}
@@ -93,7 +94,6 @@ habitat:
             - 0.0
             sensor_subtype: PINHOLE
             type: HabitatSimRGBSensor
-            width: 256
         start_position:
         - 0.0
         - 0.0
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2E # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_2Envs_800spe # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -325,10 +325,10 @@ habitat_baselines:
       eps: 1e-5 #
       gamma: 0.99 #
       hidden_size: 512 #
-      lr: 0.00025 #
+      lr: 1e-4 #
       max_grad_norm: 0.5 #
       num_mini_batch: 2 # ##################
-      num_steps: 128 #
+      num_steps: 64 # Default to 128
       ppo_epoch: 4 #
       reward_window_size: 50 #
       tau: 0.95 #
