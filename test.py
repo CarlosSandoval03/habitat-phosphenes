@@ -1,6 +1,7 @@
 import habitat # To avoid the problem with libllvmlite
 import os
 import sys
+import torch
 from pathlib import Path
 # Config management (change parameters from script)
 # from omegaconf import OmegaConf
@@ -35,9 +36,12 @@ def repeat_process():
 
 def main():
     # DISPLAY =:11.0
-    os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '1,2'  # Be careful whether I am using 1 or 2 GPUs
+    torch.cuda.empty_cache()
+    # torch.cuda.set_per_process_memory_fraction(0.9, device=0)
+    # memory_summary = torch.cuda.memory_summary(device=None, abbreviated=False)
     # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
+    # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
     os.chdir(Path('~/Internship/PyCharm_projects/habitat-lab/').expanduser())
 
@@ -47,6 +51,8 @@ def main():
     _config = phosphenes.get_config(path_config)
 
     execute_exp(_config, 'train') #train or eval
+
+    # print(memory_summary)
 
 
 if __name__ == '__main__':

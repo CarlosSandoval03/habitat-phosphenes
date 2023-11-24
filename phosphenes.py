@@ -3,10 +3,13 @@ from typing import Dict, Tuple, Optional
 
 import cv2
 import numpy as np
-from dataclasses import dataclass
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
+import torch.optim as optim
+from torch.utils.data import DataLoader
+
 import gym
 from gym.spaces import Box
 import os
@@ -14,8 +17,6 @@ import pathlib
 import importlib.resources
 import yaml
 
-import torch.nn as nn
-import torch.nn.functional as F
 import math
 import noise
 
@@ -102,7 +103,7 @@ class GrayScale(ObservationTransformer):
 
             # Start Added E2E block (is this needed? check rest pipeline)
             # Added if resized needed for e2e pipeline
-            # frame = cv2.resize(frame, (128,128), interpolation=cv2.INTER_AREA)
+            frame = cv2.resize(frame, (128,128), interpolation=cv2.INTER_AREA)
             # End Added E2E block
 
             frames.append(frame)
@@ -110,7 +111,7 @@ class GrayScale(ObservationTransformer):
         observation = torch.as_tensor(np.expand_dims(frames, -1),
                                       device=device)
         # Start Added E2E block
-        # observation = (observation.float() / 255.0)
+        observation = (observation.float() / 255.0)
         ## plt.imsave('/home/carsan/Data/habitatai/images/gray_norm_output_float_imsave_cmap.png', observation[0,:,:,0].detach().cpu().numpy(), cmap=plt.cm.gray) #desired
         # End Added E2E block
 
@@ -358,12 +359,7 @@ class ConvLayer2(nn.Module):
         self.swish = nn.SiLU() #nn.Swish()
 
     def forward(self, x):
-        x_clone = x.clone()  # Make a clone of the input tensor
-        with torch.no_grad():
-            out = self.swish(self.conv(x_clone))
-        # out = self.swish(self.conv(x))
-        # Changed because of error: RuntimeError: Inference tensors cannot be saved for backward. To work around you can
-        # make a clone to get a normal tensor and use it in autograd.
+        out = self.swish(self.conv(x))
         return out
 
 class ResidualBlock(nn.Module):
@@ -398,11 +394,10 @@ class ResidualBlock2(nn.Module):
 
     def forward(self, x):
         residual = x
-        with torch.no_grad():
-            out = self.swish(self.conv1(x))
-            out = self.conv2(out)
-            out += residual
-            out = self.swish(out)
+        out = self.swish(self.conv1(x))
+        out = self.conv2(out)
+        out += residual
+        out = self.swish(out)
         return out
 
 class E2E_Encoder(nn.Module):
@@ -442,8 +437,7 @@ class E2E_Encoder(nn.Module):
         x = self.res3(x)
         x = self.res4(x)
         x = self.convlayer4(x)
-        with torch.no_grad():
-            x = self.tanh1(self.encconv1(x))
+        x = self.tanh1(self.encconv1(x))
 
         stimulation = .5*(x+1)
         # print('enc_output',stimulation.shape)
@@ -472,7 +466,13 @@ class Encoder(ObservationTransformer):
     def _transform_obs(self, observation: torch.Tensor):
         # print('Input of encoder observation shape', observation.shape)
         device = observation.device
+
+        # For computations only in 1 device
         self.model.to(device)
+
+        # For parallel computing...
+        # self.model = nn.DataParallel(self.model).cuda()
+
         stimulation = self.model.forward(observation.permute(0,3,1,2).float())
 
         # stimulation = .5*(frame+1)  # Is this important?
@@ -541,12 +541,6 @@ class Decoder(nn.Module):
         # plt.imsave(savepath+'dec_output.png', x[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         # print('decoder output range', x.min(),x.max())
 
-        # Interpolation process to match dimensions
-        input_size = x.size()
-        input_tensor = x.view(input_size)
-        scale_factor = (256,256)
-        x = F.interpolate(input_tensor, size=scale_factor, mode='bilinear', align_corners=False)
-
         return x
 
 @baseline_registry.register_obs_transformer()
@@ -571,7 +565,12 @@ class E2E_Decoder(ObservationTransformer):
 
     def _transform_obs(self, observation: torch.Tensor):
         device = observation.device
+
+        # For computations only in 1 device
         self.model.to(device)
+
+        # For parallel computing...
+        # self.model = nn.DataParallel(self.model).cuda()
 
         observation_sliced=observation.permute(0,3,1,2)[:,0,:,:].unsqueeze(1)
 
@@ -653,10 +652,8 @@ class E2E_PhospheneSimulator(ObservationTransformer):
     2. Uses pMask to sample the phosphene locations from the SPV activation template
     2. Performs convolution with gaussian kernel for realistic phosphene simulations
     """
-    def __init__(self,scale_factor=4, sigma=1.5,kernel_size=11, intensity=15):
+    def __init__(self,scale_factor=8, sigma=1.5,kernel_size=11, intensity=15):
         super().__init__()
-
-        # Modification: I changed scale_factor from 8 to 4 so it matches the size of the pMask in the forward step.
 
         # Phosphene grid
         self.pMask = get_pMask(jitter_amplitude=0,dropout=False,seed=0)
@@ -711,7 +708,12 @@ class E2E_PhospheneSimulator(ObservationTransformer):
 
     def _transform_obs(self, observation: torch.Tensor):
         device = observation.device
+
+        # For computations only in 1 device
         self.gaussian.to(device)
+
+        # For parallel computing...
+        # self.gaussian = nn.DataParallel(self.gaussian).cuda()
 
         # print('Sim input range', observation.permute(0,3,1,2).min(),observation.permute(0,3,1,2).max())
 

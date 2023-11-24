@@ -14,7 +14,7 @@ habitat:
 #    - Hambleton
     data_path: data/datasets/pointnav/gibson/v1/{split}/{split}.json.gz
     scenes_dir: data/scene_datasets
-    split: train  # train or val (default to train)
+    split: train  # train or val (train while training or evaluating, change to val when validating)
     type: PointNav-v1  #Gibson # Original is PointNav-v1
   env_task: GymHabitatEnv
   env_task_gym_dependencies: []
@@ -28,8 +28,8 @@ habitat:
       num_episode_sample: -1
       shuffle: true
       step_repetition_range: 0.2
-    max_episode_seconds: 10000000
-    max_episode_steps: 800 # Default to 500
+    max_episode_seconds: 10000000 # Default to 10000000 # Maximum number of wall-clock seconds before the episode ends
+    max_episode_steps: 500 # Default to 500
   gym:
     achieved_goal_keys: []
     action_keys: null
@@ -37,7 +37,7 @@ habitat:
     obs_keys:  #null  # Default to null
       - rgb #
 #      - depth #
-#      - pointgoal #
+      - pointgoal #
 #      - pointgoal_with_gps_compass #
   seed: 100
   simulator:
@@ -60,8 +60,8 @@ habitat:
         radius: 0.1
         sim_sensors: # also semantic sensor, force, torque, etc.
           depth_sensor: #
-            height: 256 #
-            width: 256 #
+            height: 256 # Default to 256
+            width: 256 # Default to 256
             hfov: 90
             max_depth: 10.0
             min_depth: 0.0
@@ -80,7 +80,7 @@ habitat:
             type: HabitatSimDepthSensor
           rgb_sensor: #
             height: 256 # Default to 256
-            width: 256 # 256
+            width: 256 # Default to 256
             hfov: 90
             noise_model: None
             noise_model_kwargs: {}
@@ -106,22 +106,22 @@ habitat:
     agents_order:
     - main_agent
     auto_sleep: false
-    concur_render: false     # FOR RENDERING??? (true for rendering?)(originally set to false)
-    create_renderer: false   # FOR RENDERING??? (true for rendering?)(originally set to false)
+    concur_render: false
+    create_renderer: false
     ctrl_freq: 120.0
-    debug_render: false      # FOR RENDERING??? (true for rendering?)(originally set to false)
+    debug_render: false
     debug_render_articulated_agent: true
     debug_render_goal: true
     default_agent_id: 0
     ep_info: null
-    forward_step_size: 0.25
+    forward_step_size: 0.25 # Distance that the agent will move per step
     grasp_impulse: 10000.0
     habitat_sim_v0:
       allow_sliding: true
       enable_gfx_replay_save: false
       enable_physics: false
       frustum_culling: true
-      gpu_device_id: 0
+      gpu_device_id: [0,1] # Default to 0. This specifies which GPUs will be used relative to the ones that are visible.
       gpu_gpu: false
       leave_context_with_background_renderer: false
       physics_config_file: ./data/default.physics_config.json
@@ -142,17 +142,17 @@ habitat:
     update_articulated_agent: true
   task:
     rank0_env0_measure_names: {} # Extra given the construct_vector_env
-    actions:
-      move_forward:
+    actions: # Besides the ones defined here, also look_up, look_down, and empty actions are possible.
+      move_forward: # Will move forward by a forward_step_size distance
         agent_index: 0
         type: MoveForwardAction
-      stop:
+      stop: # When called, the Agent will request to stop the navigation task. Called when agent is within range of target.
         agent_index: 0
         type: StopAction
-      turn_left:
+      turn_left: # Will rotate the robot to the left by a turn_angle amount
         agent_index: 0
         type: TurnLeftAction
-      turn_right:
+      turn_right: # Will rotate the robot to the right by a turn_angle amount
         agent_index: 0
         type: TurnRightAction
     art_succ_thresh: 0.15
@@ -169,32 +169,32 @@ habitat:
     ee_exclude_region: 0.0
     ee_sample_factor: 0.2
     enable_safe_drop: false
-    end_on_success: true
+    end_on_success: true # If set to true, the episode will finish when the success measure says so (according to success_measure)
     filter_nav_to_tasks: []
     force_regenerate: false
-    goal_sensor_uuid: pointgoal # pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass
+    goal_sensor_uuid: pointgoal # pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass # The sensor used to determine the goal
     joint_max_impulse: -1.0
     lab_sensors: # {}
-      pointgoal_with_gps_compass_sensor: #
+      pointgoal_with_gps_compass_sensor: # Indicates the position of the point goal in the frame of reference of the robot.
         dimensionality: 2
         goal_format: POLAR
         type: PointGoalWithGPSCompassSensor
-      pointgoal: #
+      pointgoal: # Indicates the position of the point goal
         dimensionality: 2
         goal_format: POLAR
         type: PointGoalSensor
-    measurements:
-      distance_to_goal:
-        distance_to: POINT
+    measurements: # Besides the ones below, also exist: num_steps, 
+      distance_to_goal: # Measures the geodesic distance to the goal
+        distance_to: POINT # POINT measures the distance to the closest episode goal. 
         type: DistanceToGoal
-      distance_to_goal_reward:
+      distance_to_goal_reward: # Reward based on the decrease of distance towards the goal: (new_distance - previous_distance)
         type: DistanceToGoalReward
-      success:
-        success_distance: 0.2
+      success: # Measures 1.0 if success and 0 otherwise. A success is when the action stop is called when distance_to_goal < success_distance
+        success_distance: 0.2 # Closer than this is success
         type: Success
-      spl:
+      spl: # Success weighted by Path Length. SPL = success * optimal_distance_to_goal / distance_traveled_so_far.
         type: SPL
-      top_down_map: #
+      top_down_map: # Create video mapping of navigation
         type: TopDownMap
         map_padding: 3
         map_resolution: 1024
@@ -204,12 +204,12 @@ habitat:
         draw_view_points: True
         draw_goal_positions: True
         draw_goal_aabbs: True
-        max_episode_steps: 800 # Default to 500
+        max_episode_steps: 500 # Default to 500 # Max number of steps that the agent will do in an environment before the episode ends
         fog_of_war:
           draw: True
           visibility_dist: 5.0
           fov: 90
-      collisions: #
+      collisions: # Number of collisions
         type: Collisions
     min_start_distance: 3.0
     num_spawn_attempts: 200
@@ -218,7 +218,7 @@ habitat:
     pddl_domain_def: replica_cad
     physics_stability_steps: 1
     render_target: true
-    reward_measure: distance_to_goal_reward
+    reward_measure: distance_to_goal_reward  # The one measurement that the robot will consider for reward
     robot_at_thresh: 2.0
     settle_steps: 5
     should_enforce_target_within_reach: false
@@ -226,7 +226,7 @@ habitat:
     slack_reward: -0.01
     spawn_max_dist_to_obj: 2.0
     spawn_region_scale: 0.2
-    success_measure: spl
+    success_measure: spl # Measure used by the agen to determined if navigation was successful. A non-zero value in this metric means success.
     success_reward: 2.5
     success_state: 0.0
     task_spec: ''
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_2Envs_800spe # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_2Envs_800spe_gradsTracked # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -255,8 +255,8 @@ habitat_baselines:
   log_file: train.log
   log_interval: 25 #
   num_checkpoints: 100 #
-  num_environments: 2 # Default to 8
-  num_processes: -1
+  num_environments: 1 # Default to 8 # CUDA out of memory problem in E2E
+  num_processes: -1 # Default to -1. Change to the number of processes, one per GPU used (?)
   num_updates: -1 # -1 (default to 10000)
   profiling:
     capture_start_step: -1
@@ -268,7 +268,7 @@ habitat_baselines:
     ddppo:
       backbone: resnet18  # Default to resnet18
       distrib_backend: GLOO
-      force_distributed: false
+      force_distributed: false # Default to false. Change to true for parallel computing (?)
       num_recurrent_layers: 1
       pretrained: false # default to false
       pretrained_encoder: false # default to false
@@ -327,8 +327,8 @@ habitat_baselines:
       hidden_size: 512 #
       lr: 1e-4 #
       max_grad_norm: 0.5 #
-      num_mini_batch: 2 # ##################
-      num_steps: 64 # Default to 128
+      num_mini_batch: 1 # Default to 2. Reduced because CUDA memory is not sufficient for more than 1 environment, for now.
+      num_steps: 32 # Default to 128
       ppo_epoch: 4 #
       reward_window_size: 50 #
       tau: 0.95 #
@@ -352,13 +352,13 @@ habitat_baselines:
       variable_experience: true
   rollout_storage_name: RolloutStorage
   tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debugE2E
-  test_episode_count: 5 # number of evaluation episodes??? (it is written in the eval function)
-  torch_gpu_id: 0
+  test_episode_count: 1 # Number of episodes evaluated per checkpoint (?)
+  torch_gpu_id: [0,1]  # Default to 0 (no list). Changed for parallel computing
   total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2E
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2E # train_NPT_RGB_E2E_2\.8Msteps_2Envs_800spe_gradsTracked_withoutNoGrad
   video_fps: 10
   wb:
     entity: ''
