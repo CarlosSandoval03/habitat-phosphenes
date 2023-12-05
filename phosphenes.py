@@ -112,7 +112,7 @@ class GrayScale(ObservationTransformer):
                                       device=device)
         # Start Added E2E block
         observation = (observation.float() / 255.0)
-        ## plt.imsave('/home/carsan/Data/habitatai/images/gray_norm_output_float_imsave_cmap.png', observation[0,:,:,0].detach().cpu().numpy(), cmap=plt.cm.gray) #desired
+        # plt.imsave('/home/carsan/Data/habitatai/images/gray_norm_output_float_imsave_cmap.png', observation[0,:,:,0].detach().cpu().numpy(), cmap=plt.cm.gray) #desired
         # End Added E2E block
 
         return observation
@@ -120,6 +120,18 @@ class GrayScale(ObservationTransformer):
     @classmethod
     def from_config(cls, config: get_config):
         return cls()
+
+    def transform_observation_space(self, observation_space: spaces.Dict,
+                                    **kwargs):
+        key = self.transformed_sensor
+        observation_space = copy.deepcopy(observation_space)
+
+        h, w = get_image_height_width(observation_space[key],
+                                      channels_last=True)
+        new_shape = (h, w, 1)
+        observation_space[key] = overwrite_gym_box_shape(
+            observation_space[key], new_shape)
+        return observation_space
 
 
 @baseline_registry.register_obs_transformer()
@@ -327,13 +339,11 @@ def create_regular_grid(phosphene_resolution, size, jitter, intensity_var):
 
 
 # Start Added E2E block
-#beware _transform_obs ​is where the main change happens in the classes
-
 def convlayer(n_input, n_output, k_size=3, stride=1, padding=1, resample_out=None): # Also not used, for checking it after having a working model
     layer = [
         nn.Conv2d(n_input, n_output, kernel_size=k_size, stride=stride, padding=padding, bias=False),
         nn.BatchNorm2d(n_output),
-        nn.LeakyReLU(inplace=False), #True
+        nn.LeakyReLU(),
         resample_out]
     if resample_out is None:
         layer.pop()
@@ -345,7 +355,7 @@ class ConvLayer(nn.Module):
 
         self.conv = nn.Conv2d(in_channels=n_input, out_channels=n_output,  kernel_size=k_size, stride=stride, padding=padding, bias=False)
         self.bn = nn.BatchNorm2d(n_output)
-        self.leaky = nn.LeakyReLU(inplace=False) #True
+        self.leaky = nn.LeakyReLU()
 
     def forward(self, x):
         out = self.leaky(self.bn(self.conv(x)))
@@ -411,13 +421,13 @@ class E2E_Encoder(nn.Module):
 
         self.convlayer1 = ConvLayer2(in_channels,8,3,1,1)
         self.convlayer2 = ConvLayer2(8,16,3,1,1)
-        self.maxpool1 = nn.MaxPool2d(2)
+        self.maxpool1 = nn.MaxPool2d(2) # Not trained
         self.convlayer3 = ConvLayer2(16,32,3,1,1)
-        self.maxpool2 =nn.MaxPool2d(2)
-        self.res1 = ResidualBlock2(32)
-        self.res2 = ResidualBlock2(32)
-        self.res3 = ResidualBlock2(32)
-        self.res4 = ResidualBlock2(32)
+        self.maxpool2 =nn.MaxPool2d(2) # Not trained
+        self.res1 = ResidualBlock2(32) # 4 trainable parameters each
+        self.res2 = ResidualBlock2(32) # 4 trainable parameters each
+        self.res3 = ResidualBlock2(32) # 4 trainable parameters each
+        self.res4 = ResidualBlock2(32) # 4 trainable parameters each
         self.convlayer4 =ConvLayer2(32,16,3,1,1)
         self.encconv1 = nn.Conv2d(16,out_channels,3,1,1) #bias true
         self.tanh1 = nn.Tanh()
@@ -427,7 +437,8 @@ class E2E_Encoder(nn.Module):
 
         # Save input Image
         # Conditional to only save images when first dimension is the number of env and not 512?
-        # plt.imsave(savepath + 'enc_input.png', x[0, 0, :, :].detach().cpu().numpy(), cmap=plt.cm.gray)
+        # if x.shape[2] == 128:
+            # plt.imsave(savepath + 'enc_input.png', x[0, 0, :, :].detach().cpu().numpy(), cmap=plt.cm.gray)
 
         x = self.convlayer1(x)
         x = self.maxpool1(self.convlayer2(x))
@@ -456,6 +467,7 @@ class Encoder(ObservationTransformer):
         #tophos
         self.model = E2E_Encoder()
 
+
     def forward(self, observations: Dict[str, torch.Tensor]
                 ) -> Dict[str, torch.Tensor]:
         key = self.transformed_sensor
@@ -465,20 +477,13 @@ class Encoder(ObservationTransformer):
 
     def _transform_obs(self, observation: torch.Tensor):
         # print('Input of encoder observation shape', observation.shape)
-        device = observation.device
-
-        # For computations only in 1 device
-        self.model.to(device)
-
-        # For parallel computing...
-        # self.model = nn.DataParallel(self.model).cuda()
 
         stimulation = self.model.forward(observation.permute(0,3,1,2).float())
 
         # stimulation = .5*(frame+1)  # Is this important?
         stimulation = stimulation.permute(0,2,3,1)
 
-        return stimulation
+        return stimulation # Continuous space, not only 0s and 1s
 
     @classmethod
     def from_config(cls, config: get_config):
@@ -514,10 +519,10 @@ class Decoder(nn.Module):
         self.convlayer1=ConvLayer2(in_channels,16,3,1,1)
         self.convlayer2=ConvLayer2(16,32,3,1,1)
         self.convlayer3=ConvLayer2(32,64,3,2,1)
-        self.res1=ResidualBlock2(64)
-        self.res2=ResidualBlock2(64)
-        self.res3=ResidualBlock2(64)
-        self.res4=ResidualBlock2(64)
+        self.res1=ResidualBlock2(64) # 4 trainable parameters
+        self.res2=ResidualBlock2(64) # 4 trainable parameters
+        self.res3=ResidualBlock2(64) # 4 trainable parameters
+        self.res4=ResidualBlock2(64) # 4 trainable parameters
         self.convlayer4=ConvLayer2(64,32,3,1,1)
         self.decconv1=nn.Conv2d(32,out_channels,3,1,1)
         self.activ= self.out_activation
@@ -564,14 +569,6 @@ class E2E_Decoder(ObservationTransformer):
         return observations
 
     def _transform_obs(self, observation: torch.Tensor):
-        device = observation.device
-
-        # For computations only in 1 device
-        self.model.to(device)
-
-        # For parallel computing...
-        # self.model = nn.DataParallel(self.model).cuda()
-
         observation_sliced=observation.permute(0,3,1,2)[:,0,:,:].unsqueeze(1)
 
         # print('OBS_SHAPE',observation.shape, observation_sliced.shape)
@@ -707,20 +704,13 @@ class E2E_PhospheneSimulator(ObservationTransformer):
         return observations
 
     def _transform_obs(self, observation: torch.Tensor):
-        device = observation.device
-
-        # For computations only in 1 device
-        self.gaussian.to(device)
-
-        # For parallel computing...
-        # self.gaussian = nn.DataParallel(self.gaussian).cuda()
-
         # print('Sim input range', observation.permute(0,3,1,2).min(),observation.permute(0,3,1,2).max())
 
         # The sim_input torch.Size([64, 1, 32, 32])
         # The sim_output torch.Size([64, 1, 256, 256])
 
         # plt.imsave(savepath+'sim_input.png', observation.permute(0,3,1,2)[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
+        device = observation.device
 
         phosphenes = self.up(observation.permute(0,3,1,2).float())*self.pMask.cuda(device)
         phosphenes = self.gaussian(F.pad(phosphenes, (5,5,5,5), mode='constant', value=0))

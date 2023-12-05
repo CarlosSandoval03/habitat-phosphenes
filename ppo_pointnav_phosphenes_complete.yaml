@@ -29,7 +29,7 @@ habitat:
       shuffle: true
       step_repetition_range: 0.2
     max_episode_seconds: 10000000 # Default to 10000000 # Maximum number of wall-clock seconds before the episode ends
-    max_episode_steps: 500 # Default to 500
+    max_episode_steps: 800 # Default to 500
   gym:
     achieved_goal_keys: []
     action_keys: null
@@ -121,7 +121,7 @@ habitat:
       enable_gfx_replay_save: false
       enable_physics: false
       frustum_culling: true
-      gpu_device_id: [0,1] # Default to 0. This specifies which GPUs will be used relative to the ones that are visible.
+      gpu_device_id: 0 # Default to 0. This specifies which GPUs will be used relative to the ones that are visible.
       gpu_gpu: false
       leave_context_with_background_renderer: false
       physics_config_file: ./data/default.physics_config.json
@@ -204,7 +204,7 @@ habitat:
         draw_view_points: True
         draw_goal_positions: True
         draw_goal_aabbs: True
-        max_episode_steps: 500 # Default to 500 # Max number of steps that the agent will do in an environment before the episode ends
+        max_episode_steps: 800 # Default to 500 # Max number of steps that the agent will do in an environment before the episode ends
         fog_of_war:
           draw: True
           visibility_dist: 5.0
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_2Envs_800spe_gradsTracked # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_2Envs_800spe_withHistograms # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -255,7 +255,7 @@ habitat_baselines:
   log_file: train.log
   log_interval: 25 #
   num_checkpoints: 100 #
-  num_environments: 1 # Default to 8 # CUDA out of memory problem in E2E
+  num_environments: 2 # Default to 8 # CUDA out of memory problem in E2E
   num_processes: -1 # Default to -1. Change to the number of processes, one per GPU used (?)
   num_updates: -1 # -1 (default to 10000)
   profiling:
@@ -325,10 +325,10 @@ habitat_baselines:
       eps: 1e-5 #
       gamma: 0.99 #
       hidden_size: 512 #
-      lr: 1e-4 #
+      lr: 1e-2 # Default to 1e-4
       max_grad_norm: 0.5 #
-      num_mini_batch: 1 # Default to 2. Reduced because CUDA memory is not sufficient for more than 1 environment, for now.
-      num_steps: 32 # Default to 128
+      num_mini_batch: 2 # Default to 2. Reduced because CUDA memory is not sufficient for more. If it's not multiple of num_mini_batch it is a problem
+      num_steps: 64 # Default to 128
       ppo_epoch: 4 #
       reward_window_size: 50 #
       tau: 0.95 #
@@ -352,13 +352,13 @@ habitat_baselines:
       variable_experience: true
   rollout_storage_name: RolloutStorage
   tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debugE2E
-  test_episode_count: 1 # Number of episodes evaluated per checkpoint (?)
-  torch_gpu_id: [0,1]  # Default to 0 (no list). Changed for parallel computing
-  total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
+  test_episode_count: 5 # Number of episodes evaluated per checkpoint (?)
+  torch_gpu_id: 0 # Default to 0 (no list). Changed for parallel computing
+  total_num_steps: 1500000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2E # train_NPT_RGB_E2E_2\.8Msteps_2Envs_800spe_gradsTracked_withoutNoGrad
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2E
   video_fps: 10
   wb:
     entity: ''

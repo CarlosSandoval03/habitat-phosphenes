@@ -1,15 +1,14 @@
 import os
 import sys
 from pathlib import Path
+import torch
 
 from habitat_baselines.run import execute_exp
 # Need this import to register custom transformers.
 import phosphenes
 
 def main():
-    # DISPLAY =:11.0
     os.environ['CUDA_VISIBLE_DEVICES'] = '2'
-    os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
     os.chdir(Path('~/Internship/PyCharm_projects/habitat-lab/').expanduser())
 
