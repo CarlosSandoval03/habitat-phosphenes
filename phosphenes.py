@@ -7,6 +7,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.nn.init as init
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
@@ -111,7 +112,7 @@ class GrayScale(ObservationTransformer):
         observation = torch.as_tensor(np.expand_dims(frames, -1),
                                       device=device)
         # Start Added E2E block
-        observation = (observation.float() / 255.0)
+        # observation = (observation.float() / 255.0) # Changing scale from 0-255 to 0-1. Without this line the loss is huge
         # plt.imsave('/home/carsan/Data/habitatai/images/gray_norm_output_float_imsave_cmap.png', observation[0,:,:,0].detach().cpu().numpy(), cmap=plt.cm.gray) #desired
         # End Added E2E block
 
@@ -339,15 +340,15 @@ def create_regular_grid(phosphene_resolution, size, jitter, intensity_var):
 
 
 # Start Added E2E block
-def convlayer(n_input, n_output, k_size=3, stride=1, padding=1, resample_out=None): # Also not used, for checking it after having a working model
-    layer = [
-        nn.Conv2d(n_input, n_output, kernel_size=k_size, stride=stride, padding=padding, bias=False),
-        nn.BatchNorm2d(n_output),
-        nn.LeakyReLU(),
-        resample_out]
-    if resample_out is None:
-        layer.pop()
-    return layer
+# def convlayer(n_input, n_output, k_size=3, stride=1, padding=1, resample_out=None): # Also not used, for checking it after having a working model
+#     layer = [
+#         nn.Conv2d(n_input, n_output, kernel_size=k_size, stride=stride, padding=padding, bias=False),
+#         nn.BatchNorm2d(n_output),
+#         nn.LeakyReLU(),
+#         resample_out]
+#     if resample_out is None:
+#         layer.pop()
+#     return layer
 
 class ConvLayer(nn.Module):
     def __init__(self, n_input, n_output,  k_size=3, stride=1, padding=1):
@@ -368,6 +369,9 @@ class ConvLayer2(nn.Module):
         self.conv = nn.Conv2d(in_channels=n_input, out_channels=n_output,  kernel_size=k_size, stride=stride, padding=padding, bias=False)
         self.swish = nn.SiLU() #nn.Swish()
 
+        # Weight initialization to prevent vanishing gradients
+        init.xavier_uniform_(self.conv.weight)
+
     def forward(self, x):
         out = self.swish(self.conv(x))
         return out
@@ -377,7 +381,7 @@ class ResidualBlock(nn.Module):
         super(ResidualBlock, self).__init__()
         self.conv1 = nn.Conv2d(n_channels, n_channels,kernel_size=3, stride=1,padding=1)
         self.bn1 = nn.BatchNorm2d(n_channels)
-        self.relu = nn.LeakyReLU(inplace=False) #True
+        self.relu = nn.LeakyReLU()
         self.conv2 = nn.Conv2d(n_channels, n_channels,kernel_size=3, stride=1,padding=1)
         self.bn2 = nn.BatchNorm2d(n_channels)
         self.resample_out = resample_out
@@ -401,6 +405,10 @@ class ResidualBlock2(nn.Module):
         self.conv1 = nn.Conv2d(n_channels, n_channels,kernel_size=3, stride=1,padding=1)
         self.swish = nn.SiLU() #nn.Swish()
         self.conv2 = nn.Conv2d(n_channels, n_channels,kernel_size=3, stride=1,padding=1)
+
+        # Weight initialization to prevent vanishing gradients
+        init.xavier_uniform_(self.conv1.weight)
+        init.xavier_uniform_(self.conv2.weight)
 
     def forward(self, x):
         residual = x
@@ -550,16 +558,10 @@ class Decoder(nn.Module):
 
 @baseline_registry.register_obs_transformer()
 class E2E_Decoder(ObservationTransformer):
-    def __init__(self, in_channels=1, out_channels=1, out_activation='sigmoid'):
+    def __init__(self, in_channels=1, out_channels=1, out_activation='relu'):
         super().__init__()
 
         self.transformed_sensor = 'rgb'
-
-        # Activation of output layer
-        self.out_activation = {'tanh': nn.Tanh(),
-                               'sigmoid': nn.Sigmoid(),
-                               'relu': nn.LeakyReLU(),
-                               'softmax':nn.Softmax(dim=1)}[out_activation]
 
         self.model = Decoder()
 
@@ -717,7 +719,6 @@ class E2E_PhospheneSimulator(ObservationTransformer):
         phosphene = self.intensity*phosphenes
 
         # print('Sim output range', phosphene.min(),phosphene.max())
-
         # plt.imsave(savepath+'sim_output.png', phosphene[0,0,:,:].detach().cpu().numpy(), cmap=plt.cm.gray)
         phosphene = torch.tile(phosphene.permute(0,2,3,1), (1,1,1,3))
 
@@ -780,6 +781,8 @@ class CustomLoss(object):
     def __call__(self,image,stimulation,phosphenes,reconstruction,validation=False):
         device = image.device #self.prepare(image).device
 
+        # Normalization step here instead of gray transform, since now it would correct loss computations without affecting reconstruction
+        image = (image.float() / 255.0)
 
         # Target
         if self.target == 'image': # Flag for reconstructing input image or target label
@@ -788,10 +791,10 @@ class CustomLoss(object):
         # elif self.target == 'label':
         #     target = labelx
 
-        # Calculate loss
+        # Calculate loss (stimu_loss is none, but we are using kappa = 0 so it does not matter anyway
         loss_stimu = self.stimu_loss(stimulation) if self.stimu_loss is not None else torch.zeros(1,device=device)
 
-        loss_recon = self.recon_loss(self.prepare(reconstruction),target)
+        loss_recon = self.recon_loss(self.prepare(reconstruction),target) # MSE, element wise mean square error
 
         loss_total = (1-self.kappa)*loss_recon + self.kappa*loss_stimu
         return loss_total, torch.mean(loss_recon), loss_stimu

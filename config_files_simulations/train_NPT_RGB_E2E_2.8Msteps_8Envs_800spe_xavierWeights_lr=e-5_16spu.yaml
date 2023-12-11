@@ -325,7 +325,7 @@ habitat_baselines:
       eps: 1e-5 #
       gamma: 0.99 #
       hidden_size: 512 #
-      lr: 1e-4 # Default to 1e-4
+      lr: 1e-5 # Default to 1e-4
       max_grad_norm: 0.5 #
       num_mini_batch: 2 # Default to 2. Reduced because CUDA memory is not sufficient for more. If it's not multiple of num_mini_batch it is a problem
       num_steps: 16 # Default to 128
