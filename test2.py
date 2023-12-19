@@ -8,7 +8,7 @@ from habitat_baselines.run import execute_exp
 import phosphenes
 
 def main():
-    os.environ['CUDA_VISIBLE_DEVICES'] = '2'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '6'
 
     os.chdir(Path('~/Internship/PyCharm_projects/habitat-lab/').expanduser())
 

@@ -23,7 +23,7 @@ def main():
 
     _config = phosphenes.get_config(path_config)
 
-    execute_exp(_config, 'eval') #train or eval
+    execute_exp(_config, 'train') #train or eval
 
 
 if __name__ == '__main__':

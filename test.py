@@ -36,7 +36,7 @@ def repeat_process():
 
 def main():
     # DISPLAY =:11.0
-    os.environ['CUDA_VISIBLE_DEVICES'] = '3'  # Be careful whether I am using 1 or 2 GPUs
+    os.environ['CUDA_VISIBLE_DEVICES'] = '7'  # Be careful whether I am using 1 or 2 GPUs
     torch.cuda.empty_cache()
     # torch.cuda.set_per_process_memory_fraction(0.9, device=0)
     # memory_summary = torch.cuda.memory_summary(device=None, abbreviated=False)

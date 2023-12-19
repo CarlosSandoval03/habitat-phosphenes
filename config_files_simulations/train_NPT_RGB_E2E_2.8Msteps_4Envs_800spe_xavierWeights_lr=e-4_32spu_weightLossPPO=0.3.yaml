@@ -234,7 +234,7 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.1  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_4Envs_800spe_xavierWeights_lr=e-4_32spu  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.1 # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_E2E_2.8Msteps_4Envs_800spe_xavierWeights_lr=e-4_32spu # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -255,7 +255,7 @@ habitat_baselines:
   log_file: train.log
   log_interval: 25 #
   num_checkpoints: 25 #
-  num_environments: 6 # Default to 8 # CUDA out of memory problem in E2E
+  num_environments: 4 # Default to 8 # CUDA out of memory problem in E2E
   num_processes: -1 # Default to -1. Change to the number of processes, one per GPU used (?)
   num_updates: -1 # -1 (default to 10000)
   profiling:
@@ -322,7 +322,7 @@ habitat_baselines:
       clip_param: 0.2 #
       entropy_coef: 0.01 #
       entropy_target_factor: 0.0
-      eps: 1e-4 #
+      eps: 1e-5 #
       gamma: 0.99 #
       hidden_size: 512 #
       lr: 1e-4 # Default to 1e-4
@@ -351,14 +351,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_RGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.1
-  test_episode_count: 5 # Number of episodes evaluated per checkpoint (?) # Default to 5
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_RGB_E2E_2.8Msteps_4Envs_800spe_xavierWeights_lr=e-4_32spu
+  test_episode_count: 3 # Number of episodes evaluated per checkpoint (?)
   torch_gpu_id: 0 # Default to 0 (no list). Changed for parallel computing
   total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_RGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.1
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_RGB_E2E_2.8Msteps_4Envs_800spe_xavierWeights_lr=e-4_32spu
   video_fps: 10
   wb:
     entity: ''
