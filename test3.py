@@ -12,7 +12,7 @@ import phosphenes
 
 def main():
     # DISPLAY =:11.0
-    os.environ['CUDA_VISIBLE_DEVICES'] = '5'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '3'
     # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":16:8"
     # os.environ["CUBLAS_WORKSPACE_CONFIG"] = ":4096:8"
 
@@ -23,7 +23,7 @@ def main():
 
     _config = phosphenes.get_config(path_config)
 
-    execute_exp(_config, 'eval') #train or eval
+    execute_exp(_config, 'train') #train or eval
 
 
 if __name__ == '__main__':
