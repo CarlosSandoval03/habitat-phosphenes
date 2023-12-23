@@ -234,7 +234,7 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_backgroundGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_run2  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_backgroundGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_run2 # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800 # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -299,7 +299,7 @@ habitat_baselines:
           type: "BackgroundSaliencyDetection"
           masking_method: "blur"
           background_detection: True
-          saliency_masking: False
+          saliency_masking: True
 #        segmentation_cv2:
 #          type: "SegmentationCV2"
 #        black_screen:
@@ -352,14 +352,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_RGB_backgroundGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_run2
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800
   test_episode_count: 5 # number of evaluation episodes??? (it is written in the eval function)
   torch_gpu_id: 0
   total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_RGB_backgroundGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_run2
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800
   video_fps: 10
   wb:
     entity: ''

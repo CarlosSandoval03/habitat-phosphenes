@@ -1,17 +1,16 @@
 import copy
-from typing import Dict, Tuple, Optional
+from typing import Dict
 
 import cv2
 import numpy as np
 from dataclasses import dataclass
 
 import torch
-import gym
 from gym.spaces import Box
 import os
 import pathlib
-import importlib.resources
-import yaml
+import matplotlib.pyplot as plt
+import IttiSaliencyMap.pySaliencyMap as pySaliencyMap
 
 from dynaphos.cortex_models import \
     get_visual_field_coordinates_from_cortex_full
@@ -56,17 +55,7 @@ class GrayScale(ObservationTransformer):
 
         frames = []
         for frame in observation:
-            # Render the image
-            # cv2.waitKey(1)
-            # cv2.imshow("Before processing", frame)
-            # cv2.waitKey(1)
-
             frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-            # Render the image
-            # cv2.waitKey(1)
-            # cv2.imshow("Gray Scale", frame)
-            # cv2.waitKey(1)
 
             frames.append(frame)
 
@@ -124,31 +113,13 @@ class EdgeFilter(ObservationTransformer):
             # Canny edge detection.
             frame = cv2.Canny(frame, self.threshold_low, self.threshold_high)
 
-            # Render the image
-            # cv2.waitKey(1)
-            # cv2.imshow("Edges", frame)
-            # cv2.waitKey(1)
-
-            # Copy grayscale image on each RGB channel so we can reuse
-            # pre-trained net.
+            # Copy grayscale image on each RGB channel so we can reuse pre-trained net.
             # frames.append(np.tile(np.expand_dims(frame, -1), 3))
             frames.append(np.expand_dims(frame, -1))
 
         observation = torch.as_tensor(np.array(frames), device=device)
 
         return observation
-
-    # def transform_observation_space(self, observation_space: spaces.Dict,
-    #                                 **kwargs):
-    #     key = self.transformed_sensor
-    #     observation_space = copy.deepcopy(observation_space)
-    #
-    #     h, w = get_image_height_width(observation_space[key],
-    #                                   channels_last=True)
-    #     new_shape = (h, w, 3)
-    #     observation_space[key] = overwrite_gym_box_shape(
-    #         observation_space[key], new_shape)
-    #     return observation_space
 
     @classmethod
     def from_config(cls, config: get_config):
@@ -197,16 +168,9 @@ class Phosphenes(ObservationTransformer):
             phosphenes = self.grid * mask
             phosphenes = cv2.GaussianBlur(phosphenes, ksize=None,
                                           sigmaX=self.sigma)
-            # Copy grayscale image on each RGB channel so we can reuse
-            # pre-trained net.
-            phosphenes = 255 * phosphenes / (phosphenes.max() or 1)
-            frames.append(np.tile(np.expand_dims(phosphenes, -1), 3)) # Working (I know for sure)
-            # frames.append(np.expand_dims(phosphenes, -1)) # Seems to also be working?
 
-            # Render the image
-            # cv2.waitKey(1)
-            # cv2.imshow("Phosphenes", phosphenes)
-            # cv2.waitKey(1)
+            phosphenes = 255 * phosphenes / (phosphenes.max() or 1)
+            frames.append(np.tile(np.expand_dims(phosphenes, -1), 3))
 
         phosphenes = torch.as_tensor(np.array(frames, 'uint8'), device=device)
 
@@ -358,3 +322,163 @@ class BlackScreen(ObservationTransformer):
     def from_config(cls, config: get_config):
         # c = config.rl.policy.obs_transform.GrayScale
         return cls()
+
+
+@baseline_registry.register_obs_transformer()
+class BackgroundSaliencyDetection(ObservationTransformer):
+    def __init__(self, masking_method,background_detection ,saliency_masking):
+        super().__init__()
+        self.masking_method = masking_method
+        self.background_detection = background_detection
+        self.saliency_masking = saliency_masking
+        self.sm = pySaliencyMap.pySaliencyMap(256, 256)
+
+        self.transformed_sensor = 'rgb'
+
+    @classmethod
+    def from_config(cls, config: get_config):
+        return cls(config.masking_method, config.background_detection, config.saliency_masking)
+
+    def forward(self, observations: Dict[str, torch.Tensor]
+                ) -> Dict[str, torch.Tensor]:
+        key = self.transformed_sensor
+        if key in observations:
+            observations[key] = self._transform_obs(observations[key])
+        return observations
+
+    def _transform_obs(self, observation):
+        device = observation.device
+
+        observation = observation.cpu().numpy()
+
+        frames = []
+        for frame in observation:
+            if self.background_detection == True and self.saliency_masking == True:
+                backgroundMask = self.get_background(thresholding(gray_scale(gaussian_blur(frame))))
+                maskedObservation = self.get_backgroundMasked_observation(backgroundMask, frame, "blur")
+
+                saliency_map = self.sm.SMGetSM(frame)
+                saliencyMaskedObs = self.get_saliencyMasked_image(maskedObservation, saliency_map)
+
+                processedImg = saliencyMaskedObs
+            elif self.background_detection == False and self.saliency_masking == True:
+                saliency_map = self.sm.SMGetSM(frame)
+                saliencyMaskedObs = self.get_saliencyMasked_image(frame, saliency_map)
+
+                processedImg = saliencyMaskedObs
+            elif self.background_detection == True and self.saliency_masking == False:
+                backgroundMask = self.get_background(thresholding(gray_scale(gaussian_blur(frame))))
+                maskedObservation = self.get_backgroundMasked_observation(backgroundMask, frame, "blur")
+
+                processedImg = maskedObservation
+            else:
+                raise Exception("Either background_detection or saliency_masking need to be True for BackgroundSaliencyDetection transformation")
+
+            # frames.append(np.tile(np.expand_dims(maskedObservation, -1), 3))
+            frames.append(processedImg)
+
+        observations = torch.as_tensor(np.array(frames, 'uint8'), device=device)
+
+        return observations
+
+    def get_background(self, img, kernelsize=(10, 10)):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, kernelsize)
+        bin_img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2)
+        sure_bg = cv2.dilate(bin_img, kernel, iterations=3)
+        return sure_bg
+
+    def get_backgroundMasked_observation(self, background_mask, observation, back="blur"):
+        background_mask = background_mask / 255
+        if back == "black":
+            background_mask = background_mask.astype(bool)
+            binary_mask_3channel = np.stack((background_mask,) * 3, axis=-1)
+            masked_observation = binary_mask_3channel * observation
+        elif back == "blur":
+            blurred_image = cv2.GaussianBlur(observation, (35, 35), 0)
+            foreground_mask = np.stack((background_mask, background_mask, background_mask), axis=-1)
+            masked_observation = np.where(foreground_mask, observation, blurred_image)
+        else:
+            blurred_image = observation
+            foreground_mask = np.stack((background_mask, background_mask, background_mask), axis=-1)
+            masked_observation = np.where(foreground_mask, observation, blurred_image)
+
+        return masked_observation
+
+    def get_saliencyMasked_image(self, img, saliency_mask):
+        # Re-scale saliency mask to get appropriate darkening coefficients
+        saliency_normalized = np.zeros_like(saliency_mask)
+        saliency_normalized[saliency_mask > 0.3] = 1
+        saliency_normalized[(saliency_mask > 0.1) & (saliency_mask <= 0.3)] = 0.6
+        saliency_normalized[saliency_mask <= 0.1] = 0.5
+
+        # Darken the image based on the normalized mask
+        img_float = img.astype(np.float32) / 255
+        darkened_image = img_float * saliency_normalized[:, :, np.newaxis]
+        # Convert back to uint8
+        darkened_image_uint8 = np.clip(darkened_image * 255, 0, 255).astype(np.uint8)
+        return darkened_image_uint8
+
+
+@baseline_registry.register_obs_transformer()
+class SegmentationCV2(ObservationTransformer):
+    def __init__(self):
+        super().__init__()
+
+        self.transformed_sensor = 'rgb'
+
+    @classmethod
+    def from_config(cls, config: get_config):
+        return cls()
+
+    def forward(self, observations: Dict[str, torch.Tensor]
+                ) -> Dict[str, torch.Tensor]:
+        key = self.transformed_sensor
+        if key in observations:
+            observations[key] = self._transform_obs(observations[key])
+        return observations
+
+    def _transform_obs(self, observation):
+        device = observation.device
+
+        observation = observation.cpu().numpy()
+
+        frames = []
+        for frame in observation:
+            if frame is not None:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                # Apply adaptive thresholding
+                thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                               cv2.THRESH_BINARY, 11, 2)
+                # Find contours
+                contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+                # Filter contours
+                threshold_area = 900
+                filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > threshold_area]
+
+                # Draw contours on the original image
+                height, width, channels = frame.shape
+                zero_image = np.zeros((height, width), dtype=np.uint8)
+                cv2.drawContours(zero_image, filtered_contours, -1, (255, 255, 255), 1)
+            else:
+                raise Exception("The image observation does not exist.")
+
+            # frames.append(np.tile(np.expand_dims(maskedObservation, -1), 3))
+            frames.append(zero_image)
+
+        observations = torch.as_tensor(np.array(frames, 'uint8'), device=device)
+
+        return observations
+
+
+def gaussian_blur(img, kernel=(5, 5)):
+    observation = cv2.GaussianBlur(img, kernel, cv2.BORDER_DEFAULT)
+    return observation
+
+def gray_scale(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+def thresholding(img):
+    ret, bin_img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    return bin_img
+
