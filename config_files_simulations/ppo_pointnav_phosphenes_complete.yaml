@@ -172,7 +172,7 @@ habitat:
     end_on_success: true
     filter_nav_to_tasks: []
     force_regenerate: false
-    goal_sensor_uuid: pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass
+    goal_sensor_uuid: HabitatSimRGBSensor #pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass
     joint_max_impulse: -1.0
     lab_sensors: # {}
       pointgoal_with_gps_compass_sensor: #

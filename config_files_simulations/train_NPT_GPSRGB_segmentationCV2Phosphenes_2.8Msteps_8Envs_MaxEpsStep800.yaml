@@ -37,8 +37,8 @@ habitat:
     obs_keys:  # null  # Default to null
       - rgb #
 #      - depth #
-      - pointgoal #
-#      - pointgoal_with_gps_compass #
+#      - pointgoal #
+      - pointgoal_with_gps_compass #
   seed: 100
   simulator:
     renderer: # Extra given the construct_vector_env
@@ -172,7 +172,7 @@ habitat:
     end_on_success: true
     filter_nav_to_tasks: []
     force_regenerate: false
-    goal_sensor_uuid: pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass
+    goal_sensor_uuid: pointgoal_with_gps_compass #pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass
     joint_max_impulse: -1.0
     lab_sensors: # {}
       pointgoal_with_gps_compass_sensor: #
@@ -234,7 +234,7 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_HabitatSimRGBSensor  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_segmentationCV2Phosphenes_2.8Msteps_8Envs_MaxEpsStep800  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_HabitatSimRGBSensor # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_segmentationCV2Phosphenes_2.8Msteps_8Envs_MaxEpsStep800 # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -295,22 +295,22 @@ habitat_baselines:
       hierarchical_policy: ???
       name: PointNavResNetPolicy
       obs_transforms: #{} #
-        background_saliency_detection:
-          type: "BackgroundSaliencyDetection"
-          masking_method: "blur"
-          background_detection: True
-          saliency_masking: True
-#        segmentation_cv2:
-#          type: "SegmentationCV2"
+#        background_saliency_detection:
+#          type: "BackgroundSaliencyDetection"
+#          masking_method: "blur"
+#          background_detection: True
+#          saliency_masking: True
+        segmentation_cv2:
+          type: "SegmentationCV2"
 #        black_screen:
 #          type: "BlackScreen"
-        gray_scale:
-          type: "GrayScale"
-        edge_filter:
-          type: "EdgeFilter"
-          sigma: 3
-          threshold_low: 20
-          threshold_high: 40
+#        gray_scale:
+#          type: "GrayScale"
+#        edge_filter:
+#          type: "EdgeFilter"
+#          sigma: 3
+#          threshold_low: 20
+#          threshold_high: 40
         phosphenes_vision:
           type: "Phosphenes"
           size: [256, 256]
@@ -352,14 +352,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_HabitatSimRGBSensor
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_GPSRGB_segmentationCV2Phosphenes_2.8Msteps_8Envs_MaxEpsStep800
   test_episode_count: 5 # number of evaluation episodes??? (it is written in the eval function)
   torch_gpu_id: 0
   total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_RGB_backgroundSaliencyGrayEdgesPhosphenes_2.8Msteps_8Envs_MaxEpsStep800_HabitatSimRGBSensor
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_GPSRGB_segmentationCV2Phosphenes_2.8Msteps_8Envs_MaxEpsStep800
   video_fps: 10
   wb:
     entity: ''

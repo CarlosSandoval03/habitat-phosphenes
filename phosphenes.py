@@ -331,7 +331,9 @@ class BackgroundSaliencyDetection(ObservationTransformer):
         self.masking_method = masking_method
         self.background_detection = background_detection
         self.saliency_masking = saliency_masking
-        self.sm = pySaliencyMap.pySaliencyMap(256, 256)
+
+        if self.saliency_masking:
+            self.sm = pySaliencyMap.pySaliencyMap(256, 256)
 
         self.transformed_sensor = 'rgb'
 
