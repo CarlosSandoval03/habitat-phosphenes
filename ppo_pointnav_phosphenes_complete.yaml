@@ -234,7 +234,7 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2E2  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2Ebackground  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2E2 # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2Ebackground # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -295,6 +295,13 @@ habitat_baselines:
       hierarchical_policy: ???
       name: PointNavResNetPolicy
       obs_transforms: #{} #
+        background_saliency_detection:
+          type: "BackgroundSaliencyDetection"
+          masking_method: "blur"
+          background_detection: True
+          saliency_masking: False
+#        segmentation_cv2:
+#          type: "SegmentationCV2"
 #        black_screen:
 #          type: "BlackScreen"
         gray_scale:
@@ -351,14 +358,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debugE2E2
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debugE2Ebackground
   test_episode_count: 5 # Number of episodes evaluated per checkpoint (?) # Default to 5
   torch_gpu_id: 0 # Default to 0 (no list). Changed for parallel computing
   total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2E2
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2Ebackground
   video_fps: 10
   wb:
     entity: ''
@@ -366,3 +373,4 @@ habitat_baselines:
     project_name: ''
     run_name: ''
   writer_type: tb
+  
