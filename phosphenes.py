@@ -10,6 +10,7 @@ import torch.nn.functional as F
 import torch.nn.init as init
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from skimage.metrics import structural_similarity as ssim
 
 import gym
 from gym.spaces import Box
@@ -36,6 +37,8 @@ from habitat.core import spaces
 from habitat_baselines.common.baseline_registry import baseline_registry
 from habitat_baselines.common.obs_transformers import ObservationTransformer
 from habitat_baselines.utils.common import get_image_height_width
+
+from IttiSaliencyMap.pySaliencyMap import pySaliencyMap
 
 # Start Added E2E block
 savepath= '/home/carsan/Data/habitatai/images/bin/'
@@ -367,7 +370,7 @@ class ConvLayer2(nn.Module):
         super(ConvLayer2, self).__init__()
 
         self.conv = nn.Conv2d(in_channels=n_input, out_channels=n_output,  kernel_size=k_size, stride=stride, padding=padding, bias=False)
-        self.swish = nn.SiLU() #nn.Swish()
+        self.swish = nn.SiLU() #nn.Swish() # Try with nn.LeakyReLU() for good reconstruction
 
         # Weight initialization to prevent vanishing gradients
         init.xavier_uniform_(self.conv.weight)
@@ -403,7 +406,7 @@ class ResidualBlock2(nn.Module):
     def __init__(self, n_channels, stride=1, resample_out=None):
         super(ResidualBlock2, self).__init__()
         self.conv1 = nn.Conv2d(n_channels, n_channels,kernel_size=3, stride=1,padding=1)
-        self.swish = nn.SiLU() #nn.Swish()
+        self.swish = nn.SiLU() #nn.Swish() # # Try with nn.LeakyReLU() for good reconstruction
         self.conv2 = nn.Conv2d(n_channels, n_channels,kernel_size=3, stride=1,padding=1)
 
         # Weight initialization to prevent vanishing gradients
@@ -515,7 +518,7 @@ class Decoder(nn.Module):
     in: (256x256) SPV representation
     out: (128x128) Reconstruction
     """
-    def __init__(self, in_channels=1, out_channels=1, out_activation='sigmoid'):
+    def __init__(self, in_channels=1, out_channels=1, out_activation='relu'):
         super(Decoder, self).__init__()
 
         # Activation of output layer
@@ -748,7 +751,7 @@ class CustomLoss(object):
         or 'boundary' (weighted cross-entropy loss on the output<>semantic boundary labels).
         stimulation loss type (i.e. sparsity loss) can be either 'L1', 'L2' or None.
         """
-
+        self.recon_loss_type = recon_loss_type
         # Reconstruction loss
         if recon_loss_type == 'mse':
             self.recon_loss = torch.nn.MSELoss()
@@ -761,6 +764,9 @@ class CustomLoss(object):
         #     loss_weights = torch.tensor([1-recon_loss_param,recon_loss_param],device=device)
         #     self.recon_loss = torch.nn.CrossEntropyLoss(weight=loss_weights)
         #     self.target = 'label'
+        elif recon_loss_type == 'ssim':
+            self.recon_loss = ssim
+            self.target = 'image'
 
         # Stimulation loss
         if stimu_loss_type=='L1':
@@ -794,7 +800,187 @@ class CustomLoss(object):
         # Calculate loss (stimu_loss is none, but we are using kappa = 0 so it does not matter anyway
         loss_stimu = self.stimu_loss(stimulation) if self.stimu_loss is not None else torch.zeros(1,device=device)
 
-        loss_recon = self.recon_loss(self.prepare(reconstruction),target) # MSE, element wise mean square error
+        if self.recon_loss_type == "mse":
+            loss_recon = self.recon_loss(self.prepare(reconstruction),target) # MSE, element wise mean square error
+            loss_recon_return = torch.mean(loss_recon)
+        elif self.recon_loss_type == "ssim":
+            reconstruction = self.prepare(reconstruction).cpu().detach().numpy()
+            target = target.cpu().detach().numpy()
+            reconstruction = reconstruction.reshape(-1, 128, 128)
+            target = target.reshape(-1, 128, 128)
+
+            # Calculate SSIM for each image pair in the batch
+            ssim_values = [self.recon_loss(reconstruction[i], target[i], data_range=reconstruction[i].max() - reconstruction[i].min()) for i in range(reconstruction.shape[0])]
+            # Compute the average SSIM
+            average_ssim = sum(ssim_values) / len(ssim_values)
+            loss_recon = 1 - average_ssim
+            loss_recon = torch.as_tensor(loss_recon, device=device)
+            loss_recon_return = loss_recon
+        else: # MSE for now just to cover all cases
+            loss_recon = self.recon_loss(self.prepare(reconstruction), target)
+            loss_recon_return = torch.mean(loss_recon)
 
         loss_total = (1-self.kappa)*loss_recon + self.kappa*loss_stimu
-        return loss_total, torch.mean(loss_recon), loss_stimu
+
+        return loss_total, loss_recon_return, loss_stimu
+
+
+@baseline_registry.register_obs_transformer()
+class BackgroundSaliencyDetection(ObservationTransformer):
+    def __init__(self, masking_method,background_detection ,saliency_masking):
+        super().__init__()
+        self.masking_method = masking_method
+        self.background_detection = background_detection
+        self.saliency_masking = saliency_masking
+
+        if self.saliency_masking:
+            self.sm = pySaliencyMap.pySaliencyMap(256, 256)
+
+        self.transformed_sensor = 'rgb'
+
+    @classmethod
+    def from_config(cls, config: get_config):
+        return cls(config.masking_method, config.background_detection, config.saliency_masking)
+
+    def forward(self, observations: Dict[str, torch.Tensor]
+                ) -> Dict[str, torch.Tensor]:
+        key = self.transformed_sensor
+        if key in observations:
+            observations[key] = self._transform_obs(observations[key])
+        return observations
+
+    def _transform_obs(self, observation):
+        device = observation.device
+
+        observation = observation.cpu().numpy()
+
+        frames = []
+        for frame in observation:
+            if self.background_detection == True and self.saliency_masking == True:
+                backgroundMask = self.get_background(thresholding(gray_scale(gaussian_blur(frame))))
+                maskedObservation = self.get_backgroundMasked_observation(backgroundMask, frame, "blur")
+
+                saliency_map = self.sm.SMGetSM(frame)
+                saliencyMaskedObs = self.get_saliencyMasked_image(maskedObservation, saliency_map)
+
+                processedImg = saliencyMaskedObs
+            elif self.background_detection == False and self.saliency_masking == True:
+                saliency_map = self.sm.SMGetSM(frame)
+                saliencyMaskedObs = self.get_saliencyMasked_image(frame, saliency_map)
+
+                processedImg = saliencyMaskedObs
+            elif self.background_detection == True and self.saliency_masking == False:
+                backgroundMask = self.get_background(thresholding(gray_scale(gaussian_blur(frame))))
+                maskedObservation = self.get_backgroundMasked_observation(backgroundMask, frame, self.masking_method)
+
+                processedImg = maskedObservation
+            else:
+                raise Exception("Either background_detection or saliency_masking need to be True for BackgroundSaliencyDetection transformation")
+
+            # frames.append(np.tile(np.expand_dims(maskedObservation, -1), 3))
+            frames.append(processedImg)
+
+        observations = torch.as_tensor(np.array(frames, 'uint8'), device=device)
+
+        return observations
+
+    def get_background(self, img, kernelsize=(10, 10)):
+        kernel = cv2.getStructuringElement(cv2.MORPH_RECT, kernelsize)
+        bin_img = cv2.morphologyEx(img, cv2.MORPH_OPEN, kernel, iterations=2)
+        sure_bg = cv2.dilate(bin_img, kernel, iterations=3)
+        return sure_bg
+
+    def get_backgroundMasked_observation(self, background_mask, observation, back="blur"):
+        background_mask = background_mask / 255
+        if back == "black":
+            background_mask = background_mask.astype(bool)
+            binary_mask_3channel = np.stack((background_mask,) * 3, axis=-1)
+            masked_observation = binary_mask_3channel * observation
+        elif back == "blur":
+            blurred_image = cv2.GaussianBlur(observation, (35, 35), 0)
+            foreground_mask = np.stack((background_mask, background_mask, background_mask), axis=-1)
+            masked_observation = np.where(foreground_mask, observation, blurred_image)
+        else:
+            blurred_image = observation
+            foreground_mask = np.stack((background_mask, background_mask, background_mask), axis=-1)
+            masked_observation = np.where(foreground_mask, observation, blurred_image)
+
+        return masked_observation
+
+    def get_saliencyMasked_image(self, img, saliency_mask):
+        # Re-scale saliency mask to get appropriate darkening coefficients
+        saliency_normalized = np.zeros_like(saliency_mask)
+        saliency_normalized[saliency_mask > 0.3] = 1
+        saliency_normalized[(saliency_mask > 0.1) & (saliency_mask <= 0.3)] = 0.6
+        saliency_normalized[saliency_mask <= 0.1] = 0.5
+
+        # Darken the image based on the normalized mask
+        img_float = img.astype(np.float32) / 255
+        darkened_image = img_float * saliency_normalized[:, :, np.newaxis]
+        # Convert back to uint8
+        darkened_image_uint8 = np.clip(darkened_image * 255, 0, 255).astype(np.uint8)
+        return darkened_image_uint8
+
+
+@baseline_registry.register_obs_transformer()
+class SegmentationCV2(ObservationTransformer):
+    def __init__(self):
+        super().__init__()
+
+        self.transformed_sensor = 'rgb'
+
+    @classmethod
+    def from_config(cls, config: get_config):
+        return cls()
+
+    def forward(self, observations: Dict[str, torch.Tensor]
+                ) -> Dict[str, torch.Tensor]:
+        key = self.transformed_sensor
+        if key in observations:
+            observations[key] = self._transform_obs(observations[key])
+        return observations
+
+    def _transform_obs(self, observation):
+        device = observation.device
+
+        observation = observation.cpu().numpy()
+
+        frames = []
+        for frame in observation:
+            if frame is not None:
+                gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                # Apply adaptive thresholding
+                thresh = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                                               cv2.THRESH_BINARY, 11, 2)
+                # Find contours
+                contours, _ = cv2.findContours(thresh, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+                # Filter contours
+                threshold_area = 900
+                filtered_contours = [cnt for cnt in contours if cv2.contourArea(cnt) > threshold_area]
+
+                # Draw contours on the original image
+                height, width, channels = frame.shape
+                zero_image = np.zeros((height, width), dtype=np.uint8)
+                cv2.drawContours(zero_image, filtered_contours, -1, (255, 255, 255), 1)
+            else:
+                raise Exception("The image observation does not exist.")
+
+            # frames.append(np.tile(np.expand_dims(maskedObservation, -1), 3))
+            frames.append(zero_image)
+
+        observations = torch.as_tensor(np.array(frames, 'uint8'), device=device)
+
+        return observations
+
+
+def gaussian_blur(img, kernel=(5, 5)):
+    observation = cv2.GaussianBlur(img, kernel, cv2.BORDER_DEFAULT)
+    return observation
+
+def gray_scale(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+def thresholding(img):
+    ret, bin_img = cv2.threshold(img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    return bin_img

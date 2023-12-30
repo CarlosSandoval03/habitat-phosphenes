@@ -37,8 +37,8 @@ habitat:
     obs_keys:  #null  # Default to null
       - rgb #
 #      - depth #
-      - pointgoal #
-#      - pointgoal_with_gps_compass #
+#      - pointgoal #
+      - pointgoal_with_gps_compass #
   seed: 100
   simulator:
     renderer: # Extra given the construct_vector_env
@@ -172,7 +172,7 @@ habitat:
     end_on_success: true # If set to true, the episode will finish when the success measure says so (according to success_measure)
     filter_nav_to_tasks: []
     force_regenerate: false
-    goal_sensor_uuid: pointgoal # pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass # The sensor used to determine the goal
+    goal_sensor_uuid: pointgoal_with_gps_compass # pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass # The sensor used to determine the goal
     joint_max_impulse: -1.0
     lab_sensors: # {}
       pointgoal_with_gps_compass_sensor: # Indicates the position of the point goal in the frame of reference of the robot.
@@ -234,7 +234,7 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2E2  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=2.5e-4_32spu_weightLossPPO=0.6  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2E2 # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=2.5e-4_32spu_weightLossPPO=0.6 # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -255,7 +255,7 @@ habitat_baselines:
   log_file: train.log
   log_interval: 25 #
   num_checkpoints: 25 #
-  num_environments: 2 # Default to 8 # CUDA out of memory problem in E2E
+  num_environments: 6 # Default to 8 # CUDA out of memory problem in E2E
   num_processes: -1 # Default to -1. Change to the number of processes, one per GPU used (?)
   num_updates: -1 # -1 (default to 10000)
   profiling:
@@ -295,6 +295,13 @@ habitat_baselines:
       hierarchical_policy: ???
       name: PointNavResNetPolicy
       obs_transforms: #{} #
+#        background_saliency_detection:
+#          type: "BackgroundSaliencyDetection"
+#          masking_method: "blur"
+#          background_detection: True
+#          saliency_masking: True
+#        segmentation_cv2:
+#          type: "SegmentationCV2"
 #        black_screen:
 #          type: "BlackScreen"
         gray_scale:
@@ -325,7 +332,7 @@ habitat_baselines:
       eps: 1e-4 #
       gamma: 0.99 #
       hidden_size: 512 #
-      lr: 1e-4 # Default to 1e-4
+      lr: 0.00025 # Default to 1e-4
       max_grad_norm: 0.5 #
       num_mini_batch: 2 # Default to 2. Reduced because CUDA memory is not sufficient for more. If it's not multiple of num_mini_batch it is a problem
       num_steps: 32 # Default to 128
@@ -351,14 +358,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debugE2E2
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_GPSRGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=2.5e-4_32spu_weightLossPPO=0.6
   test_episode_count: 5 # Number of episodes evaluated per checkpoint (?) # Default to 5
   torch_gpu_id: 0 # Default to 0 (no list). Changed for parallel computing
   total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2E2
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_GPSRGB_E2E_2.8Msteps_6Envs_800spe_xavierWeights_lr=2.5e-4_32spu_weightLossPPO=0.6
   video_fps: 10
   wb:
     entity: ''
