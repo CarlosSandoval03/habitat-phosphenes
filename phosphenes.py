@@ -767,6 +767,9 @@ class CustomLoss(object):
         elif recon_loss_type == 'ssim':
             self.recon_loss = ssim
             self.target = 'image'
+        elif recon_loss_type == 'hist':
+            self.recon_loss = self.calculate_histogram_similarity
+            self.target = 'image'
 
         # Stimulation loss
         if stimu_loss_type=='L1':
@@ -804,16 +807,24 @@ class CustomLoss(object):
             loss_recon = self.recon_loss(self.prepare(reconstruction),target) # MSE, element wise mean square error
             loss_recon_return = torch.mean(loss_recon)
         elif self.recon_loss_type == "ssim":
-            reconstruction = self.prepare(reconstruction).cpu().detach().numpy()
-            target = target.cpu().detach().numpy()
-            reconstruction = reconstruction.reshape(-1, 128, 128)
-            target = target.reshape(-1, 128, 128)
-
             # Calculate SSIM for each image pair in the batch
-            ssim_values = [self.recon_loss(reconstruction[i], target[i], data_range=reconstruction[i].max() - reconstruction[i].min()) for i in range(reconstruction.shape[0])]
+            ssim_values = [self.recon_loss(img1.cpu().detach().numpy().squeeze(),
+                                           img2.cpu().detach().numpy().squeeze(),
+                                           data_range=img1.cpu().detach().numpy().squeeze().max() - img1.cpu().detach().numpy().squeeze().min())
+                                           for img1, img2 in zip(reconstruction["rgb"], target)]
+
             # Compute the average SSIM
             average_ssim = sum(ssim_values) / len(ssim_values)
             loss_recon = 1 - average_ssim
+            loss_recon = torch.as_tensor(loss_recon, device=device)
+            loss_recon_return = loss_recon
+        elif self.recon_loss_type == "hist": # Histogram comparison
+            histogram_similarities = []
+            for img1, img2 in zip(reconstruction["rgb"], target):
+                sim = self.recon_loss(img1.cpu().detach().numpy(), img2.cpu().detach().numpy())
+                histogram_similarities.append(sim)
+            # Compute the average similarity
+            loss_recon = sum(histogram_similarities) / len(histogram_similarities)
             loss_recon = torch.as_tensor(loss_recon, device=device)
             loss_recon_return = loss_recon
         else: # MSE for now just to cover all cases
@@ -823,6 +834,17 @@ class CustomLoss(object):
         loss_total = (1-self.kappa)*loss_recon + self.kappa*loss_stimu
 
         return loss_total, loss_recon_return, loss_stimu
+
+    def calculate_histogram_similarity(self, target, reconstruction):
+        hist_img1 = cv2.calcHist([target], [0], None, [128], [0, 1])
+        cv2.normalize(hist_img1, hist_img1, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+
+        hist_img2 = cv2.calcHist([reconstruction], [0], None, [128], [0, 1])
+        cv2.normalize(hist_img2, hist_img2, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+
+        # Find the metric value
+        metric_val = cv2.compareHist(hist_img1, hist_img2, cv2.HISTCMP_CORREL)
+        return metric_val
 
 
 @baseline_registry.register_obs_transformer()
@@ -875,7 +897,7 @@ class BackgroundSaliencyDetection(ObservationTransformer):
 
                 processedImg = maskedObservation
             else:
-                raise Exception("Either background_detection or saliency_masking need to be True for BackgroundSaliencyDetection transformation")
+                processedImg = frame
 
             # frames.append(np.tile(np.expand_dims(maskedObservation, -1), 3))
             frames.append(processedImg)

@@ -29,7 +29,7 @@ habitat:
       shuffle: true
       step_repetition_range: 0.2
     max_episode_seconds: 10000000 # Default to 10000000 # Maximum number of wall-clock seconds before the episode ends
-    max_episode_steps: 800 # Default to 500
+    max_episode_steps: 500 # Default to 500
   gym:
     achieved_goal_keys: []
     action_keys: null
@@ -37,8 +37,8 @@ habitat:
     obs_keys:  #null  # Default to null
       - rgb #
 #      - depth #
-      - pointgoal #
-#      - pointgoal_with_gps_compass #
+#      - pointgoal #
+      - pointgoal_with_gps_compass #
   seed: 100
   simulator:
     renderer: # Extra given the construct_vector_env
@@ -172,7 +172,7 @@ habitat:
     end_on_success: true # If set to true, the episode will finish when the success measure says so (according to success_measure)
     filter_nav_to_tasks: []
     force_regenerate: false
-    goal_sensor_uuid: pointgoal # pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass # The sensor used to determine the goal
+    goal_sensor_uuid: pointgoal_with_gps_compass # pointgoal # HabitatSimRGBSensor # default to pointgoal_with_gps_compass # The sensor used to determine the goal
     joint_max_impulse: -1.0
     lab_sensors: # {}
       pointgoal_with_gps_compass_sensor: # Indicates the position of the point goal in the frame of reference of the robot.
@@ -204,7 +204,7 @@ habitat:
         draw_view_points: True
         draw_goal_positions: True
         draw_goal_aabbs: True
-        max_episode_steps: 800 # Default to 500 # Max number of steps that the agent will do in an environment before the episode ends
+        max_episode_steps: 500 # Default to 500 # Max number of steps that the agent will do in an environment before the episode ends
         fog_of_war:
           draw: True
           visibility_dist: 5.0
@@ -234,7 +234,7 @@ habitat:
     type: Nav-v0
     use_marker_t: true
 habitat_baselines:
-  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2Ebackground  # in eval same as eval_ckpt_path_dir
+  checkpoint_folder: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_E2E_2.8Msteps_2Envs_500spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.9_decoderWithRelu  # in eval same as eval_ckpt_path_dir
   checkpoint_interval: -1
   distrib_updater_name: DDPPO
   eval:
@@ -246,7 +246,7 @@ habitat_baselines:
     video_option:
       - disk
       - tensorboard
-  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/debugE2Ebackground # Same as checkpoint_folder to evaluate
+  eval_ckpt_path_dir: /home/carsan/Data/phosphenes/habitat/checkpoints/train_NPT_GPSRGB_E2E_2.8Msteps_2Envs_500spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.9_decoderWithRelu # Same as checkpoint_folder to evaluate
   eval_keys_to_include_in_name: []
   evaluate: false
   force_blind_policy: false
@@ -295,11 +295,11 @@ habitat_baselines:
       hierarchical_policy: ???
       name: PointNavResNetPolicy
       obs_transforms: #{} #
-        background_saliency_detection:
-          type: "BackgroundSaliencyDetection"
-          masking_method: "blur"
-          background_detection: True
-          saliency_masking: False
+#        background_saliency_detection:
+#          type: "BackgroundSaliencyDetection"
+#          masking_method: "black"
+#          background_detection: True
+#          saliency_masking: False
 #        segmentation_cv2:
 #          type: "SegmentationCV2"
 #        black_screen:
@@ -358,14 +358,14 @@ habitat_baselines:
       overlap_rollouts_and_learn: false
       variable_experience: true
   rollout_storage_name: RolloutStorage
-  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/debugE2Ebackground
+  tensorboard_dir: /home/carsan/Data/phosphenes/habitat/tb/train/train_NPT_GPSRGB_E2E_2.8Msteps_2Envs_500spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.9_decoderWithRelu
   test_episode_count: 5 # Number of episodes evaluated per checkpoint (?) # Default to 5
   torch_gpu_id: 0 # Default to 0 (no list). Changed for parallel computing
   total_num_steps: 2800000 # (-1 if num_updates is specified) 75e6 (in the examples, optimal)
   trainer_name: ppo
   updater_name: PPO
   verbose: false
-  video_dir: /home/carsan/Data/phosphenes/habitat/videos/debugE2Ebackground
+  video_dir: /home/carsan/Data/phosphenes/habitat/videos/train_NPT_GPSRGB_E2E_2.8Msteps_2Envs_500spe_xavierWeights_lr=e-4_32spu_weightLossPPO=0.9_decoderWithRelu
   video_fps: 10
   wb:
     entity: ''
